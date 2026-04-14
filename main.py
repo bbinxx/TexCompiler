@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Antigravity TexCompiler API",
+    title="TexCompiler API",
     description="A high-performance LaTeX to PDF compilation service.",
     version="1.0.0"
 )
@@ -64,18 +64,22 @@ async def read_root(request: Request):
     """
     return templates.TemplateResponse(request=request, name="index.html")
 
+import re
+
 def run_compilation(workdir: Path, main_file: str, compiler: str = "pdflatex"):
     """
-    Runs latexmk to compile the document.
+    Runs latexmk to compile the document with detailed logging.
     """
     cmd = [
         "latexmk",
         f"-{compiler}",
         "-pdf",
         "-interaction=nonstopmode",
-        "-shell-escape",  # Allow some packages to run external commands if needed
+        "-shell-escape",
         main_file
     ]
+    
+    logger.info(f"🚀 Starting compilation: {' '.join(cmd)} in {workdir}")
     
     try:
         process = subprocess.run(
@@ -84,75 +88,81 @@ def run_compilation(workdir: Path, main_file: str, compiler: str = "pdflatex"):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            timeout=60  # Timeout after 60 seconds
+            timeout=60
         )
         
-        if process.returncode != 0:
-            # Look for the log file
-            log_path = workdir / main_file.replace(".tex", ".log")
-            log_content = ""
-            if log_path.exists():
-                log_content = log_path.read_text(errors="replace")
-            
-            return False, log_content or process.stdout or process.stderr
+        # Look for the log file to extract details/warnings
+        log_path = workdir / main_file.replace(".tex", ".log")
+        log_content = ""
+        warnings = []
         
-        return True, None
+        if log_path.exists():
+            log_content = log_path.read_text(errors="replace")
+            # Extract warnings (LaTeX warnings usually start with "LaTeX Warning:")
+            warnings = re.findall(r"(?:LaTeX|Package|Class) Warning:.*?\n\n", log_content, re.DOTALL)
+            if not warnings:
+                # Fallback for simpler warnings
+                warnings = [line.strip() for line in log_content.splitlines() if "Warning:" in line]
+
+        if process.returncode != 0:
+            logger.error(f"❌ Compilation failed with return code {process.returncode}")
+            return False, log_content or process.stdout or process.stderr, warnings
+        
+        logger.info(f"✅ Compilation successful: {main_file}")
+        return True, log_content, warnings
+        
     except subprocess.TimeoutExpired:
-        return False, "Compilation timed out (max 60 seconds)."
+        logger.error("⏱️ Compilation timed out (60s limit)")
+        return False, "Compilation timed out (max 60 seconds).", []
     except Exception as e:
-        return False, str(e)
+        logger.error(f"💥 Unexpected error during compilation: {str(e)}")
+        return False, str(e), []
 
 @app.post("/compile")
 async def compile_tex(request: CompileRequest):
     """
-    Compiles LaTeX. Supports:
-    1. Single 'code' string.
-    2. 'files' dictionary (filename -> content/base64).
+    Compiles LaTeX with detailed response including warnings.
     """
+    logger.info(f"📥 Received compile request (Compiler: {request.compiler})")
+    
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        
         main_file = request.main_file
         
-        # Handle files dictionary
         if request.files:
+            logger.info(f"📁 Processing {len(request.files)} files...")
             for filename, content in request.files.items():
                 file_path = tmp_path / filename
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 
-                # Check if it's base64 (for images/assets)
-                # Heuristic: try to decode if extension is binary-friendly
                 binary_exts = {'.png', '.jpg', '.jpeg', '.pdf', '.cls', '.sty', '.zip'}
                 is_binary = any(filename.lower().endswith(ext) for ext in binary_exts)
                 
                 try:
                     if is_binary:
-                        try:
-                            decoded = base64.b64decode(content)
-                            with open(file_path, "wb") as f:
-                                f.write(decoded)
-                            continue
-                        except:
-                            pass
-                    
-                    # Default to text
-                    file_path.write_text(content)
+                        decoded = base64.b64decode(content)
+                        file_path.write_bytes(decoded)
+                    else:
+                        file_path.write_text(content)
                 except Exception as e:
-                    logger.error(f"Error writing file {filename}: {e}")
+                    logger.warning(f"⚠️ Failed to write {filename}: {e}")
         else:
-            # Single file mode
             if not request.code:
-                return JSONResponse(status_code=400, content={"error": "No code or files provided."})
-            tex_file = tmp_path / "document.tex"
-            tex_file.write_text(request.code)
+                return JSONResponse(status_code=400, content={"error": "No code provided"})
+            (tmp_path / "document.tex").write_text(request.code)
             main_file = "document.tex"
-        
-        success, error_log = run_compilation(tmp_path, main_file, request.compiler)
+
+        success, log, warnings = run_compilation(tmp_path, main_file, request.compiler)
         
         if not success:
             return JSONResponse(
                 status_code=400,
-                content={"error": "Compilation failed", "log": error_log}
+                content={
+                    "error": "Compilation failed",
+                    "log": log,
+                    "warnings": warnings,
+                    "details": "Check the log for missing packages or syntax errors."
+                }
             )
         
         pdf_name = main_file.replace(".tex", ".pdf")

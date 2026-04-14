@@ -51,7 +51,7 @@ const defaultLatex = `\\\\documentclass{article}
 \\\\usepackage[margin=1in]{geometry}
 \\\\usepackage{hyperref}
 
-\\\\title{Antigravity TexCompiler Demo}
+\\\\title{TexCompiler Demo}
 \\\\author{AI Assistant}
 \\\\date{\\\\today}
 

@@ -1,4 +1,4 @@
-# Antigravity TexCompiler API
+# TexCompiler API
 
 A robust, high-performance LaTeX to PDF compilation service built with FastAPI. Designed to be easily integrated into other applications.
 

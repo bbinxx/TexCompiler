@@ -1,6 +1,6 @@
 # TexCompiler Integration Guide
 
-This guide provides everything you need to know to integrate the **Antigravity TexCompiler** into your own applications.
+This guide provides everything you need to know to integrate the **TexCompiler** into your own applications.
 
 ## 🚀 API Base URL
 If running locally: `http://localhost:8000`

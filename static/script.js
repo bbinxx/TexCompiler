@@ -1,19 +1,31 @@
-const editor = document.getElementById('editor');
+const aceEditor = ace.edit("editor");
+aceEditor.setTheme("ace/theme/dracula");
+aceEditor.session.setMode("ace/mode/latex");
+aceEditor.setShowPrintMargin(false);
+aceEditor.setOptions({
+    fontSize: "14px",
+    enableBasicAutocompletion: true,
+    fontFamily: "Fira Code, monospace"
+});
+
 const compileBtn = document.getElementById('compile-btn');
 const pdfViewer = document.getElementById('pdf-viewer');
 const terminal = document.getElementById('terminal-content');
 const loader = document.getElementById('loader');
 const compilerSelect = document.getElementById('compiler');
+const pageCount = document.getElementById('page-count');
 
 async function compile() {
-    const code = editor.value;
+    const code = aceEditor.getValue();
     const compiler = compilerSelect.value;
     
     // Clear terminal
-    terminal.innerHTML = 'Compiling...';
+    terminal.innerHTML = '<span class="log-info">🚀 Starting compilation...</span><br>';
     compileBtn.disabled = true;
     loader.classList.add('active');
+    pageCount.textContent = 'Compiling...';
     
+    let isOk = false;
     try {
         const response = await fetch('/compile', {
             method: 'POST',
@@ -24,19 +36,52 @@ async function compile() {
         });
         
         if (response.ok) {
+            isOk = true;
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             pdfViewer.src = url;
-            terminal.innerHTML = '<span style="color: #4ade80;">Success! PDF generated.</span>';
+            terminal.innerHTML += '<span class="log-success">✅ Success! PDF generated successfully.</span><br>';
+            
+            // Extract warnings if any
+            // Note: Since it's a blob response, we don't get the JSON warnings.
+            // In a real app, you might want to send warnings in a header.
+            pageCount.textContent = 'View PDF';
         } else {
             const errorData = await response.json();
-            terminal.innerHTML = `<span class="log-error">Error: ${errorData.error}</span>\n\n${errorData.log || ''}`;
+            terminal.innerHTML += `<span class="log-error">❌ Error: ${errorData.error}</span><br><br>`;
+            if (errorData.log) {
+                terminal.innerHTML += `<div style="opacity: 0.8; font-size: 0.9em;">${errorData.log}</div>`;
+            }
+            pageCount.textContent = 'Failed';
         }
     } catch (error) {
-        terminal.innerHTML = `<span class="log-error">Fetch Error: ${error.message}</span>`;
+        terminal.innerHTML += `<span class="log-error">❌ System Error: ${error.message}</span>`;
+        pageCount.textContent = 'Error';
     } finally {
         compileBtn.disabled = false;
         loader.classList.remove('active');
+        terminal.scrollTop = terminal.scrollHeight;
+        
+        // Auto-switch to preview on mobile after compilation
+        if (window.innerWidth <= 900 && isOk) {
+            switchTab('preview-pane');
+        }
+    }
+}
+
+function switchTab(paneId) {
+    // Switch panes
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    document.getElementById(paneId).classList.add('active');
+    
+    // Switch buttons
+    document.querySelectorAll('.mobile-tab-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('onclick').includes(paneId));
+    });
+
+    // Resize Ace Editor if it became visible
+    if (paneId === 'editor-pane') {
+        aceEditor.resize();
     }
 }
 
@@ -77,4 +122,5 @@ Euler's identity is a beautiful formula:
 
 \\\\end{document}`;
 
-editor.value = defaultLatex.replace(/\\\\/g, '\\');
+aceEditor.setValue(defaultLatex.replace(/\\\\/g, '\\'), -1);
+aceEditor.focus();

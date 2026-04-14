@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: tex-compiler
+    env: docker
+    plan: free # Note: LaTeX builds may need more memory than the free plan provides
+    region: oregon # Or your preferred region
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000

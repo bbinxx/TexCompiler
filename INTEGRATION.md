@@ -120,10 +120,30 @@ The API is designed to return detailed feedback when things go wrong.
 
 ---
 
-## 🐳 Docker Deployment
-For production use, it is highly recommended to run this via Docker to ensure all LaTeX packages are present:
+## 🌍 Deployment
 
-```bash
-docker build -t tex-compiler .
-docker run -p 8000:8000 tex-compiler
+### 🚀 Render.com (Recommended)
+This repo includes a `render.yaml` and `Dockerfile`. Render is the best choice because it supports Docker, allowing you to run the full LaTeX suite.
+1. Connect your GitHub/GitLab repo to Render.
+2. Render will automatically detect the `render.yaml` and deploy using Docker.
+3. **Note**: TeX builds are memory-intensive. For large documents, you may need a Render plan with at least 1GB or 2GB of RAM.
+
+### 🍱 General Cloud (Heroku, Railway, DigitalOcean)
+Use the included `Dockerfile` and `Procfile`. Most modern platforms will see these and handle the OS-level LaTeX installation for you automatically.
+
+### ☁️ Netlify / Vercel
+Standard serverless functions (Netlify Functions) **do not support** custom binaries like `pdflatex`. To use this compiler with a Netlify project:
+1. Deploy the compiler to **Render** or **Railway**.
+2. Call the Render/Railway API from your Netlify application.
+
+---
+
+## 🏥 Health Check
+You can monitor the service at `/health`. It returns:
+```json
+{
+  "status": "healthy",
+  "pdflatex": "/usr/bin/pdflatex",
+  "latexmk": "/usr/bin/latexmk"
+}
 ```

@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+.env
+
+# LaTeX (Auxiliary files)
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.pdf
+*.blg
+*.bbl
+*.nav
+*.snm
+*.vrb
+*.upa
+*.upb
+*.xdv
+*.run.xml
+*.bcf
+*.lof
+*.lot
+*.glo
+*.ist
+
+# FastAPI / IDE
+.vscode/
+.idea/
+.pytest_cache/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

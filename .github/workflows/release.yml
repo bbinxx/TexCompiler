@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          PREV_TAG=$(git tag --sort=-v:refname | head -2 | tail -1 || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..${GITHUB_REF_NAME}"
+            NOTES=$(git log "$RANGE" --pretty=format:"* %s (%h)" --no-merges)
+          else
+            NOTES=$(git log --pretty=format:"* %s (%h)" --no-merges "${GITHUB_REF_NAME}")
+          fi
+          {
+            echo "NOTES<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ github.ref_name }}"
+          body: |
+            ## What's Changed
+
+            ${{ steps.notes.outputs.NOTES }}
+
+            ## How to Use
+
+            ```bash
+            # Linux / macOS / Git Bash
+            ./run.sh
+
+            # Windows (cmd.exe)
+            run.bat
+            ```
+          generate_release_notes: false

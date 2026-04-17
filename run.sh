@@ -1,54 +1,95 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -e
 
-# Configuration
+# ------------------------------------------------------------------
+#  TexCompiler — Cross-platform launcher (Linux / macOS / Git Bash)
+# ------------------------------------------------------------------
+
 VENV_DIR=".venv"
 REQUIREMENTS="requirements.txt"
 APP_ENTRY="main.py"
+PORT="${PORT:-8000}"
 
-echo "🚀 Starting TexCompiler Setup..."
+# ---- detect OS / shell environment ----
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    OS="windows"
+    PYTHON_CMD="${PYTHON_CMD:-python}"
+    VENV_ACTIVATE="$VENV_DIR/Scripts/activate"
+    ;;
+  Darwin)
+    OS="macos"
+    PYTHON_CMD="${PYTHON_CMD:-python3}"
+    VENV_ACTIVATE="$VENV_DIR/bin/activate"
+    ;;
+  Linux|*)
+    OS="linux"
+    PYTHON_CMD="${PYTHON_CMD:-python3}"
+    VENV_ACTIVATE="$VENV_DIR/bin/activate"
+    ;;
+esac
 
-# Check if Python is installed
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Error: python3 is not installed."
+echo "==> Detected OS: $OS"
+
+# ---- find Python ----
+if ! command -v "$PYTHON_CMD" &>/dev/null; then
+  # fallback: try the other common name
+  if [ "$PYTHON_CMD" = "python3" ]; then
+    PYTHON_CMD="python"
+  else
+    PYTHON_CMD="python3"
+  fi
+  if ! command -v "$PYTHON_CMD" &>/dev/null; then
+    echo "Error: Python is not installed. Install Python 3.10+ first."
+    echo "  - Debian/Ubuntu: sudo apt install python3 python3-venv"
+    echo "  - Fedora:        sudo dnf install python3"
+    echo "  - Arch:          sudo pacman -S python"
+    echo "  - macOS:         brew install python"
+    echo "  - Windows:       https://python.org/downloads"
     exit 1
+  fi
 fi
 
-# Create virtual environment if it doesn't exist
+echo "==> Using Python: $PYTHON_CMD ($("$PYTHON_CMD" --version 2>&1))"
+
+# ---- virtual environment ----
 if [ ! -d "$VENV_DIR" ]; then
-    echo "📦 Creating virtual environment..."
-    python3 -m venv "$VENV_DIR"
-    if [ $? -ne 0 ]; then
-        echo "❌ Error: Failed to create virtual environment. You may need to install python3-venv (sudo apt install python3-venv)."
-        exit 1
-    fi
+  echo "==> Creating virtual environment..."
+  "$PYTHON_CMD" -m venv "$VENV_DIR"
 fi
 
-# Activate virtual environment
-echo "🔌 Activating environment..."
-source "$VENV_DIR/bin/activate"
+echo "==> Activating virtual environment..."
+# shellcheck source=/dev/null
+. "$VENV_ACTIVATE"
 
-# Install/Update dependencies
+# ---- upgrade pip & install deps ----
+pip install --upgrade pip -q
 if [ -f "$REQUIREMENTS" ]; then
-    echo "📥 Installing dependencies from $REQUIREMENTS..."
-    pip install --upgrade pip
-    pip install -r "$REQUIREMENTS"
-else
-    echo "⚠️ Warning: $REQUIREMENTS not found. Skipping dependency installation."
+  pip install -r "$REQUIREMENTS" -q
 fi
 
-# Check for LaTeX dependencies
-if ! command -v pdflatex &> /dev/null; then
-    echo "⚠️ Warning: pdflatex not found. Local compilation will fail."
-    echo "💡 Suggestion: install texlive (sudo apt install texlive-full)"
+# ---- check LaTeX availability ----
+LATEX_OK=true
+command -v pdflatex &>/dev/null || { echo "Warning: pdflatex not found."; LATEX_OK=false; }
+command -v xelatex  &>/dev/null || { echo "Warning: xelatex not found.";  LATEX_OK=false; }
+command -v lualatex &>/dev/null || { echo "Warning: lualatex not found."; LATEX_OK=false; }
+
+if [ "$LATEX_OK" = false ]; then
+  echo ""
+  echo "  A LaTeX distribution is required for compilation."
+  echo "  Install one of:"
+  echo "    - TeX Live (Linux/macOS/WSL): https://tug.org/texlive/"
+  echo "    - MiKTeX   (Windows):         https://miktex.org/"
+  echo "    - BasicTeX (macOS):           brew install basictex"
+  echo ""
 fi
 
-if ! command -v latexmk &> /dev/null; then
-    echo "⚠️ Warning: latexmk not found. Using raw pdflatex might cause issues with complex docs."
+# ---- free up port if in use ----
+if command -v fuser &>/dev/null; then
+  fuser -k "${PORT}/tcp" 2>/dev/null && echo "==> Freed port $PORT" || true
 fi
 
-echo "✨ Starting TexCompiler Service..."
-echo "📊 Accessible at: http://localhost:8000"
-echo "------------------------------------------------"
-
-# Run the application
-python3 "$APP_ENTRY"
+# ---- start service ----
+echo "==> Starting TexCompiler on http://localhost:$PORT"
+echo ""
+uvicorn main:app --host 0.0.0.0 --port "$PORT" --reload

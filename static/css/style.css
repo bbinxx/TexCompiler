@@ -229,6 +229,7 @@ main {
     padding: 12px;
     overflow: hidden;
     position: relative;
+    min-width: 0;
 }
 
 .pane {
@@ -436,9 +437,192 @@ main {
         justify-content: center;
     }
 
-    .mobile-tabs {
-        display: flex;
-    }
+.header-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    transition: color var(--transition), background var(--transition);
+}
+.header-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.app-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.explorer-panel {
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-primary);
+    transition: width 0.2s ease, min-width 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+.explorer-panel.open {
+    width: 260px;
+    min-width: 260px;
+}
+
+.explorer-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.explorer-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    min-height: 40px;
+}
+
+.explorer-actions {
+    display: flex;
+    gap: 4px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-secondary);
+}
+
+.exp-btn {
+    background: none;
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    padding: 3px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: var(--font-ui);
+    transition: color var(--transition), border-color var(--transition);
+}
+.exp-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--text-tertiary);
+}
+
+.explorer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.exp-tree {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.exp-project,
+.exp-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    transition: background var(--transition);
+    user-select: none;
+}
+.exp-project:hover,
+.exp-item:hover {
+    background: var(--bg-tertiary);
+}
+.exp-item.exp-active {
+    background: rgba(88, 166, 255, 0.12);
+    color: var(--accent-blue);
+}
+
+.exp-icon {
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+    font-size: 0.85rem;
+    opacity: 0.7;
+}
+
+.exp-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.exp-meta {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+
+.exp-empty {
+    padding: 20px 12px;
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    text-align: center;
+}
+
+.exp-back {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0 4px;
+    transition: color var(--transition);
+}
+.exp-back:hover {
+    color: var(--text-primary);
+}
+
+.exp-context-menu {
+    position: fixed;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+    z-index: 1000;
+    min-width: 140px;
+    padding: 4px;
+}
+.exp-context-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-family: var(--font-ui);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition);
+}
+.exp-context-menu button:hover {
+    background: var(--bg-primary);
+}
+
+.mobile-tabs {
+    display: none;
+}
 
     main {
         flex-direction: column;

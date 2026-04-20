@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 APP_TITLE = "TexCompiler API"
 APP_DESCRIPTION = "A high-performance LaTeX to PDF compilation service."
@@ -15,3 +16,5 @@ CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*").split(",")
 BINARY_EXTENSIONS = frozenset({
     ".png", ".jpg", ".jpeg", ".pdf", ".cls", ".sty", ".zip",
 })
+
+WORKSPACE_DIR = os.environ.get("WORKSPACE_DIR", str(Path(__file__).resolve().parent.parent / "workspace"))

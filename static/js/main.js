@@ -1,6 +1,7 @@
 import { initEditor, setCode, getCode, focusEditor, onChange } from './editor.js';
 import { Terminal } from './terminal.js';
 import { compileCode } from './compiler.js';
+import { Explorer } from './explorer.js';
 import { UI } from './ui.js';
 import { DEFAULT_LATEX } from './defaults.js';
 import { detectCompiler } from './detector.js';
@@ -20,9 +21,42 @@ function initApp() {
 
   const terminal = new Terminal('terminal-content', 'term-copy', 'term-clear');
   const ui = new UI();
+  const explorer = new Explorer('explorer-content');
   let manualOverride = false;
+  let currentFilePath = null;
 
   ui.loadCompilers();
+
+  // ---- Explorer callbacks ----
+
+  explorer.onOpenFile((path, name, content) => {
+    currentFilePath = path;
+    setCode(content, -1);
+    document.getElementById('editor-filename').textContent = name;
+    document.getElementById('editor-title').textContent = `Editing: ${path}`;
+    terminal.info(`Opened: ${path}`);
+  });
+
+  explorer.onFilesChanged(() => {
+    terminal.info('Project files updated');
+  });
+
+  // Load projects on startup
+  explorer.loadProjects().then(projects => {
+    if (projects.length > 0) {
+      terminal.info(`Workspace loaded: ${projects.length} project(s)`);
+    }
+  });
+
+  // ---- Menu toggle ----
+
+  const menuToggle = document.getElementById('menu-toggle');
+  const explorerPanel = document.getElementById('explorer-panel');
+  menuToggle.addEventListener('click', () => {
+    explorerPanel.classList.toggle('open');
+  });
+
+  // ---- Compiler detection ----
 
   function runDetect() {
     const code = getCode();
@@ -50,6 +84,8 @@ function initApp() {
   runDetect();
   terminal.info('Ready. Press Ctrl+Enter to compile.');
 
+  // ---- Compile handler ----
+
   async function handleCompile() {
     const code = getCode();
     const compiler = ui.getCompiler();
@@ -58,10 +94,38 @@ function initApp() {
     terminal.info('Starting compilation...');
     ui.setCompiling(true);
 
-    const result = await compileCode(code, compiler);
+    if (explorer.activeProject && currentFilePath) {
+      try {
+        await explorer.saveFile(currentFilePath, code);
+        terminal.info(`Saved: ${currentFilePath}`);
+      } catch {
+        terminal.warning('Could not save file before compile');
+      }
+    }
+
+    let result;
+    if (explorer.activeProject) {
+      try {
+        const status = await explorer.compileProject(compiler);
+        if (status.success && status.pdf_exists) {
+          const pdfUrl = explorer.getPdfUrl();
+          const pdfRes = await fetch(pdfUrl);
+          const blob = await pdfRes.blob();
+          result = { success: true, data: blob, warnings: status.warnings, compiler_used: status.compiler_used };
+        } else {
+          result = { success: false, error: 'Compilation failed', log: '', warnings: status.warnings || [] };
+        }
+        if (status.compiler_used && status.compiler_used !== compiler) {
+          terminal.info(`Compiler auto-switched to: ${status.compiler_used}`);
+        }
+      } catch (e) {
+        result = { success: false, error: e.message, log: '' };
+      }
+    } else {
+      result = await compileCode(code, compiler);
+    }
 
     ui.setCompiling(false);
-    terminal.scrollToBottom();
 
     if (result.success) {
       terminal.success('PDF generated successfully.');
@@ -74,7 +138,7 @@ function initApp() {
         ui.switchTab('preview-pane');
       }
     } else {
-      terminal.error(result.error);
+      terminal.error(result.error || 'Compilation failed');
       if (result.log) {
         terminal.divider();
         terminal.log(result.log);

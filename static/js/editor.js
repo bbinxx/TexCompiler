@@ -47,3 +47,11 @@ export function focusEditor() {
     editorInstance.focus();
   }
 }
+
+export function insertAtCursor(text) {
+  if (!editorInstance) return;
+  const session = editorInstance.session;
+  const pos = editorInstance.getCursorPosition();
+  session.insert(pos, text);
+  editorInstance.focus();
+}

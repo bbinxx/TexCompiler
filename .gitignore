@@ -35,6 +35,9 @@ dist/
 *.glo
 *.ist
 
+# workspace (local file system access — not server storage)
+workspace/
+
 # FastAPI / IDE
 .vscode/
 .idea/

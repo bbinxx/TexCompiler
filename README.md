@@ -1,61 +1,187 @@
 # TexCompiler
 
-A high-performance LaTeX to PDF compilation service with a built-in web IDE, workspace management, and auto font path resolution.
+A high-performance LaTeX to PDF compilation service with a browser-based IDE, local file system access, and auto font path resolution.
 
 ## Features
 
-- **Web IDE** — built-in code editor with syntax highlighting, PDF preview, and build console
-- **Workspace Management** — create and manage LaTeX projects directly in the browser (like Photopea)
-- **File Explorer** — sidebar file tree with create/rename/delete, folder organization, image upload
-- **Multi-Compiler** — pdflatex, xelatex, lualatex + auto-detection of the best engine from code content
-- **Auto Font Resolution** — hardcoded `\setmainfont{...}[Path = ...]` paths are automatically corrected to match the current system
+- **Browser IDE** — Ace Editor with LaTeX syntax highlighting, PDF preview, and build console
+- **Local Workspace** — pick any folder on your device as the workspace; files are read/written directly via the File System Access API (no server-side storage)
+- **File Explorer** — sidebar tree with directory navigation, create/rename/delete/duplicate files
+- **Image Insertion** — add images from your device or a URL; saved to your workspace and inserted as `\includegraphics{}`
+- **Multi-Compiler** — pdflatex, xelatex, lualatex with automatic engine detection from code content
+- **Auto Font Resolution** — font paths in `\setmainfont{...}[Path = ...]` are automatically corrected to match the system
 - **latexmk** — automatic multi-pass compilation for cross-references and bibliographies
-- **Cross-Platform** — runs on Linux, macOS, and Windows (native .bat + cross-shell .sh)
+- **Session Persistence** — workspace folder handle is stored in IndexedDB and restored across page refreshes
+- **Cross-Platform** — Linux, macOS, Windows (native `.bat` + cross-shell `.sh`)
 
 ## Quick Start
 
 ```bash
-# Linux / macOS / Git Bash
-./run.sh
+# Install LaTeX (Ubuntu/Debian)
+sudo apt install texlive-full latexmk
 
-# Windows (cmd.exe)
-run.bat
+# Install LaTeX (macOS)
+brew install --cask mactex
+
+# Run
+./run.sh        # Linux / macOS / Git Bash
+run.bat         # Windows (cmd.exe)
 ```
 
 Opens at `http://localhost:8000`.
 
-## Workspace Workflow
+## Usage
 
-1. Open the app — the file explorer sidebar shows your workspace projects
-2. Click **"+ New"** to create a project (subfolder with a `main.tex` sample)
-3. Click a project to browse its files in the sidebar
+1. Open the app, then click the **Settings** (gear) icon in the header
+2. Click **Select Folder** to choose a workspace folder on your device
+3. The sidebar file explorer shows the folder contents — navigate into subdirectories
 4. Click any `.tex` file to open it in the editor
-5. Edit freely — files auto-save before compile
-6. Press **Ctrl+Enter** or click **Compile** to generate the PDF
-7. Right-click files/folders for rename and delete
-
-Projects live on disk under `./workspace/` (configurable via `WORKSPACE_DIR` env).
+5. Edit freely — **Ctrl+S** or click the Save button to persist
+6. Files auto-save before each compile
+7. Press **Ctrl+Enter** or click **Compile** to generate the PDF
+8. **Right-click** any file or click the **`…`** button for Rename / Duplicate / Delete
+9. Click the **image icon** to insert images from your device or a URL
 
 ## API
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/workspace/projects` | GET | List projects |
-| `/workspace/projects` | POST | Create a project |
-| `/workspace/projects/{name}/files` | GET | List files in a project |
-| `/workspace/projects/{name}/files/{path}` | GET | Read file content |
-| `/workspace/projects/{name}/files/{path}` | PUT | Write file content |
-| `/workspace/projects/{name}/files/{path}` | POST | Create empty file |
-| `/workspace/projects/{name}/files/{path}` | DELETE | Delete file/folder |
-| `/workspace/projects/{name}/rename` | POST | Rename a file or folder |
-| `/workspace/projects/{name}/upload` | POST | Upload a file (multipart) |
-| `/workspace/projects/{name}/compile` | POST | Compile project |
-| `/workspace/projects/{name}/pdf` | GET | Get compiled PDF |
-| `/compile` | POST | Compile raw LaTeX code |
-| `/compile/bundle` | POST | Compile a ZIP bundle |
-| `/compilers` | GET | List available compilers |
-| `/detect-compiler` | POST | Detect best compiler for code |
-| `/health` | GET | Server status |
+The API can be used independently of the web IDE for headless compilation.
+
+### `POST /compile`
+
+Compile raw LaTeX code and receive a PDF.
+
+**Request (JSON):**
+
+```json
+{
+  "code": "\\documentclass{article}\\begin{document}Hello\\end{document}",
+  "compiler": "pdflatex"
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `code` | string | — | LaTeX source code |
+| `files` | object | `null` | Map of filename → content for multi-file projects |
+| `main_file` | string | `"document.tex"` | Entry point when using `files` |
+| `compiler` | string | `"pdflatex"` | Compiler engine |
+
+**Response:** `application/pdf` binary stream on success, or `application/json` error on failure.
+
+**Example (curl):**
+
+```bash
+curl -X POST http://localhost:8000/compile \
+  -H "Content-Type: application/json" \
+  -d '{"code":"\\documentclass{article}\\begin{document}Hello\\end{document}"}' \
+  -o output.pdf
+```
+
+**Multi-file example (curl):**
+
+```bash
+curl -X POST http://localhost:8000/compile \
+  -H "Content-Type: application/json" \
+  -d '{
+    "files": {
+      "main.tex": "\\documentclass{article}\\input{body}\\end{document}",
+      "body.tex": "Hello from body!"
+    },
+    "main_file": "main.tex",
+    "compiler": "pdflatex"
+  }' \
+  -o output.pdf
+```
+
+**Python example:**
+
+```python
+import requests
+
+res = requests.post("http://localhost:8000/compile", json={
+    "code": r"\documentclass{article}\begin{document}Hello\end{document}",
+    "compiler": "pdflatex",
+})
+with open("output.pdf", "wb") as f:
+    f.write(res.content)
+```
+
+### `POST /compile/bundle`
+
+Compile a ZIP bundle containing LaTeX sources.
+
+**Request:** `multipart/form-data`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `file` | file | — | ZIP archive containing LaTeX files |
+| `main_file` | string | `"main.tex"` | Entry point within the archive |
+| `compiler` | string | `"pdflatex"` | Compiler engine |
+
+**Response:** `application/pdf` binary stream.
+
+**Example (curl):**
+
+```bash
+zip bundle.zip main.tex
+curl -X POST http://localhost:8000/compile/bundle \
+  -F "file=@bundle.zip" \
+  -F "main_file=main.tex" \
+  -F "compiler=pdflatex" \
+  -o output.pdf
+```
+
+### `GET /compilers`
+
+List available compiler engines.
+
+**Response:**
+
+```json
+{
+  "compilers": ["pdflatex", "xelatex", "lualatex", "latex"]
+}
+```
+
+### `POST /detect-compiler`
+
+Auto-detect the best compiler for given LaTeX code.
+
+**Request (JSON):**
+
+```json
+{
+  "code": "\\documentclass{article}\\usepackage{fontspec}\\begin{document}Hello\\end{document}",
+  "preferred": "pdflatex"
+}
+```
+
+**Response:**
+
+```json
+{
+  "compiler": "lualatex"
+}
+```
+
+### `GET /health`
+
+Server health and version info.
+
+**Response:**
+
+```json
+{
+  "status": "healthy",
+  "version": "1.3.0",
+  "compilers": ["pdflatex", "xelatex", "lualatex"],
+  "latexmk": "/usr/bin/latexmk"
+}
+```
+
+### `GET /`
+
+Serves the web IDE.
 
 ## Deploy
 
@@ -64,13 +190,11 @@ docker build -t texcompiler .
 docker run -p 8000:8000 texcompiler
 ```
 
-Set `WORKSPACE_DIR` env to a persistent volume for project data.
-
 ## Environment Variables
 
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8000` | Server port |
-| `WORKSPACE_DIR` | `./workspace` | Projects storage directory |
 | `COMPILE_TIMEOUT` | `120` | Compilation timeout (seconds) |
 | `LOG_LEVEL` | `INFO` | Logging level |
+| `CORS_ORIGINS` | `*` | CORS allowed origins |

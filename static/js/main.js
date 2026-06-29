@@ -1,8 +1,9 @@
-import { initEditor, setCode, getCode, focusEditor, onChange } from './editor.js';
+import { initEditor, setCode, getCode, focusEditor, onChange, insertAtCursor } from './editor.js';
 import { Terminal } from './terminal.js';
 import { compileCode } from './compiler.js';
 import { Explorer } from './explorer.js';
 import { UI } from './ui.js';
+import { Settings } from './settings.js';
 import { DEFAULT_LATEX } from './defaults.js';
 import { detectCompiler } from './detector.js';
 
@@ -14,6 +15,24 @@ function debounce(fn, ms) {
   };
 }
 
+async function handleSave(explorer, currentFilePath, getCode, terminal) {
+  if (!explorer.hasFolder) {
+    terminal.warning('No workspace folder selected.');
+    return;
+  }
+  if (!currentFilePath) {
+    terminal.warning('No file is open.');
+    return;
+  }
+  const code = getCode();
+  try {
+    await explorer.saveFile(currentFilePath, code);
+    terminal.info(`Saved: ${currentFilePath}`);
+  } catch {
+    terminal.warning('Could not save file');
+  }
+}
+
 function initApp() {
   const editor = initEditor('editor');
   setCode(DEFAULT_LATEX, -1);
@@ -21,9 +40,27 @@ function initApp() {
 
   const terminal = new Terminal('terminal-content', 'term-copy', 'term-clear');
   const ui = new UI();
+  const settings = new Settings();
   const explorer = new Explorer('explorer-content');
   let manualOverride = false;
   let currentFilePath = null;
+
+  // ---- Save helper ----
+
+  const saveCurrentFile = () => handleSave(explorer, currentFilePath, getCode, terminal);
+
+  // ---- Settings / Folder ----
+
+  settings.onFolderChange(async (handle) => {
+    await explorer.openFolder(handle);
+    terminal.info(`Opened folder: ${handle.name}`);
+  });
+
+  settings.init().then(() => {
+    if (!settings.folderName) {
+      terminal.info('Open Settings to choose a workspace folder.');
+    }
+  });
 
   ui.loadCompilers();
 
@@ -38,14 +75,7 @@ function initApp() {
   });
 
   explorer.onFilesChanged(() => {
-    terminal.info('Project files updated');
-  });
-
-  // Load projects on startup
-  explorer.loadProjects().then(projects => {
-    if (projects.length > 0) {
-      terminal.info(`Workspace loaded: ${projects.length} project(s)`);
-    }
+    terminal.info('Files updated');
   });
 
   // ---- Menu toggle ----
@@ -54,6 +84,77 @@ function initApp() {
   const explorerPanel = document.getElementById('explorer-panel');
   menuToggle.addEventListener('click', () => {
     explorerPanel.classList.toggle('open');
+  });
+
+  // ---- Save button ----
+
+  document.getElementById('save-btn').addEventListener('click', saveCurrentFile);
+
+  // ---- Image insert ----
+
+  document.getElementById('image-btn').addEventListener('click', (e) => {
+    if (!explorer.hasFolder) {
+      terminal.warning('No workspace folder selected.');
+      return;
+    }
+    const menu = document.createElement('div');
+    menu.className = 'exp-context-menu';
+    const rect = e.currentTarget.getBoundingClientRect();
+    menu.style.left = rect.left + 'px';
+    menu.style.top = (rect.bottom + 4) + 'px';
+
+    const fromFileBtn = document.createElement('button');
+    fromFileBtn.textContent = 'From file...';
+    fromFileBtn.addEventListener('click', () => {
+      menu.remove();
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+        try {
+          await explorer.saveImageFromFile(file, file.name);
+          const tex = file.name.toLowerCase().endsWith('.pdf') ? `\\includegraphics{${file.name}}` : `\\includegraphics{${file.name}}`;
+          insertAtCursor(tex);
+          terminal.info(`Inserted image: ${file.name}`);
+        } catch (err) {
+          terminal.warning('Could not add image: ' + err.message);
+        }
+      };
+      input.click();
+    });
+    menu.appendChild(fromFileBtn);
+
+    const fromUrlBtn = document.createElement('button');
+    fromUrlBtn.textContent = 'From URL...';
+    fromUrlBtn.addEventListener('click', () => {
+      menu.remove();
+      const url = prompt('Image URL:');
+      if (!url) return;
+      const name = prompt('Save as filename (e.g., image.png):');
+      if (!name) return;
+      (async () => {
+        try {
+          await explorer.saveImageFromUrl(url, name);
+          const tex = `\\includegraphics{${name}}`;
+          insertAtCursor(tex);
+          terminal.info(`Inserted image: ${name}`);
+        } catch (err) {
+          terminal.warning('Could not add image: ' + err.message);
+        }
+      })();
+    });
+    menu.appendChild(fromUrlBtn);
+
+    document.body.appendChild(menu);
+    const close = (ev) => {
+      if (!menu.contains(ev.target)) {
+        menu.remove();
+        document.removeEventListener('click', close);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', close), 0);
   });
 
   // ---- Compiler detection ----
@@ -82,9 +183,9 @@ function initApp() {
   });
 
   runDetect();
-  terminal.info('Ready. Press Ctrl+Enter to compile.');
+  terminal.info('Ready. Ctrl+Enter to compile, Ctrl+S to save.');
 
-  // ---- Compile handler ----
+  // ---- Compile handler (auto-saves before compile) ----
 
   async function handleCompile() {
     const code = getCode();
@@ -94,7 +195,7 @@ function initApp() {
     terminal.info('Starting compilation...');
     ui.setCompiling(true);
 
-    if (explorer.activeProject && currentFilePath) {
+    if (explorer.hasFolder && currentFilePath) {
       try {
         await explorer.saveFile(currentFilePath, code);
         terminal.info(`Saved: ${currentFilePath}`);
@@ -103,27 +204,7 @@ function initApp() {
       }
     }
 
-    let result;
-    if (explorer.activeProject) {
-      try {
-        const status = await explorer.compileProject(compiler);
-        if (status.success && status.pdf_exists) {
-          const pdfUrl = explorer.getPdfUrl();
-          const pdfRes = await fetch(pdfUrl);
-          const blob = await pdfRes.blob();
-          result = { success: true, data: blob, warnings: status.warnings, compiler_used: status.compiler_used };
-        } else {
-          result = { success: false, error: 'Compilation failed', log: '', warnings: status.warnings || [] };
-        }
-        if (status.compiler_used && status.compiler_used !== compiler) {
-          terminal.info(`Compiler auto-switched to: ${status.compiler_used}`);
-        }
-      } catch (e) {
-        result = { success: false, error: e.message, log: '' };
-      }
-    } else {
-      result = await compileCode(code, compiler);
-    }
+    const result = await compileCode(code, compiler);
 
     ui.setCompiling(false);
 
@@ -149,10 +230,16 @@ function initApp() {
 
   ui.compileBtn.addEventListener('click', handleCompile);
 
+  // ---- Keyboard shortcuts ----
+
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       handleCompile();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      saveCurrentFile();
     }
   });
 

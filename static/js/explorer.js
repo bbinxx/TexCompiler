@@ -1,10 +1,11 @@
 export class Explorer {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
-    this.projectName = null;
     this._activeFile = null;
     this._onOpenFile = null;
     this._onFilesChanged = null;
+    this._dirStack = [];
+    this._entries = [];
   }
 
   onOpenFile(fn) {
@@ -15,219 +16,263 @@ export class Explorer {
     this._onFilesChanged = fn;
   }
 
-  async loadProjects() {
-    try {
-      const res = await fetch('/workspace/projects');
-      const data = await res.json();
-      this._renderProjectList(data.projects);
-      return data.projects;
-    } catch {
-      this._renderError('Could not load workspace');
-      return [];
-    }
+  get activeFile() {
+    return this._activeFile;
   }
 
-  async openProject(name) {
-    this.projectName = name;
-    try {
-      const res = await fetch(`/workspace/projects/${encodeURIComponent(name)}/files`);
-      const data = await res.json();
-      this._renderFileTree(data.files, name);
-    } catch {
-      this._renderError('Could not load project files');
-    }
+  get folderName() {
+    return this._dirStack.length > 0 ? this._dirStack[0].name : null;
   }
 
-  async createProject(name) {
-    const res = await fetch('/workspace/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-    if (!res.ok) throw new Error((await res.json()).detail || 'Create failed');
-    return res.json();
+  get hasFolder() {
+    return this._dirStack.length > 0;
   }
 
-  async deleteProject(name) {
-    const res = await fetch(`/workspace/projects/${encodeURIComponent(name)}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Delete failed');
+  get currentPath() {
+    return this._dirStack.map(h => h.name).join('/');
   }
 
-  async createFile(path) {
-    const res = await fetch(
-      `/workspace/projects/${encodeURIComponent(this.projectName)}/files/${encodeURIComponent(path)}`,
-      { method: 'POST' }
-    );
-    if (!res.ok) throw new Error('Create file failed');
+  get rootHandle() {
+    return this._dirStack.length > 0 ? this._dirStack[0] : null;
   }
 
-  async deleteItem(path) {
-    const res = await fetch(
-      `/workspace/projects/${encodeURIComponent(this.projectName)}/files/${encodeURIComponent(path)}`,
-      { method: 'DELETE' }
-    );
-    if (!res.ok) throw new Error('Delete failed');
+  async openFolder(handle) {
+    this._dirStack = [handle];
+    this._activeFile = null;
+    await this._loadCurrentDir();
+    if (this._onFilesChanged) this._onFilesChanged();
   }
 
-  async renameItem(path, newPath) {
-    const res = await fetch(
-      `/workspace/projects/${encodeURIComponent(this.projectName)}/rename`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path, new_path: newPath }),
+  async navigateInto(name) {
+    const current = this._dirStack[this._dirStack.length - 1];
+    const sub = await current.getDirectoryHandle(name);
+    this._dirStack.push(sub);
+    await this._loadCurrentDir();
+  }
+
+  async navigateUp() {
+    if (this._dirStack.length <= 1) return;
+    this._dirStack.pop();
+    await this._loadCurrentDir();
+  }
+
+  async _loadCurrentDir() {
+    const handle = this._dirStack[this._dirStack.length - 1];
+    const dirs = [];
+    const files = [];
+    for await (const entry of handle.values()) {
+      if (entry.kind === 'directory') {
+        dirs.push({ name: entry.name, kind: 'directory' });
+      } else {
+        files.push({ name: entry.name, kind: 'file' });
       }
-    );
-    if (!res.ok) throw new Error('Rename failed');
+    }
+    dirs.sort((a, b) => a.name.localeCompare(b.name));
+    files.sort((a, b) => a.name.localeCompare(b.name));
+    this._entries = [...dirs, ...files];
+    this._renderLocalFiles();
   }
 
-  async openFile(path) {
+  async openFile(name) {
+    const handle = this._dirStack[this._dirStack.length - 1];
+    const fileHandle = await handle.getFileHandle(name);
+    const file = await fileHandle.getFile();
+    const content = await file.text();
+    const path = this.currentPath + '/' + name;
     this._activeFile = path;
-    const res = await fetch(
-      `/workspace/projects/${encodeURIComponent(this.projectName)}/files/${encodeURIComponent(path)}`
-    );
-    if (!res.ok) throw new Error('Read failed');
-    const content = await res.text();
-    const name = path.split('/').pop() || path;
     if (this._onOpenFile) this._onOpenFile(path, name, content);
     this._highlightActive(path);
   }
 
   async saveFile(path, content) {
-    const res = await fetch(
-      `/workspace/projects/${encodeURIComponent(this.projectName)}/files/${encodeURIComponent(path)}`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path, content }),
-      }
-    );
-    if (!res.ok) throw new Error('Save failed');
-  }
-
-  async compileProject(compiler) {
-    const res = await fetch(`/workspace/projects/${encodeURIComponent(this.projectName)}/compile?compiler=${compiler}`);
-    if (!res.ok) throw new Error('Compile failed');
-    return res.json();
-  }
-
-  getPdfUrl() {
-    return `/workspace/projects/${encodeURIComponent(this.projectName)}/pdf`;
-  }
-
-  get activeFile() {
-    return this._activeFile;
-  }
-
-  get activeProject() {
-    return this.projectName;
-  }
-
-  // ---- Rendering ----
-
-  _renderProjectList(projects) {
-    let html = '<div class="explorer-header"><span>Projects</span></div>';
-    html += '<div class="explorer-actions"><button class="exp-btn" id="new-project-btn" title="New project">+ New</button></div>';
-    html += '<div class="explorer-body">';
-    if (projects.length === 0) {
-      html += '<div class="exp-empty">No projects yet. Click "+ New" to create one.</div>';
-    } else {
-      html += '<ul class="exp-tree">';
-      for (const p of projects) {
-        html += `<li class="exp-project" data-project="${p.name}">
-          <span class="exp-icon">&#128193;</span>
-          <span class="exp-label">${this._esc(p.name)}</span>
-          <span class="exp-meta">${p.files} .tex</span>
-        </li>`;
-      }
-      html += '</ul>';
+    const parts = path.split('/');
+    const fileName = parts.pop();
+    if (parts.length > 0 && parts[0] === this._dirStack[0].name) {
+      parts.shift();
     }
-    html += '</div>';
-    this.container.innerHTML = html;
-    this._bindProjectEvents();
+    let handle = this.rootHandle;
+    for (const p of parts) {
+      handle = await handle.getDirectoryHandle(p, { create: true });
+    }
+    const fileHandle = await handle.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(content);
+    await writable.close();
   }
 
-  _renderFileTree(files, project) {
+  async createFile(name) {
+    const handle = this._dirStack[this._dirStack.length - 1];
+    await handle.getFileHandle(name, { create: true });
+    await this._loadCurrentDir();
+  }
+
+  async createFolder(name) {
+    const handle = this._dirStack[this._dirStack.length - 1];
+    await handle.getDirectoryHandle(name, { create: true });
+    await this._loadCurrentDir();
+  }
+
+  async deleteItem(name) {
+    const handle = this._dirStack[this._dirStack.length - 1];
+    await handle.removeEntry(name, { recursive: true });
+    await this._loadCurrentDir();
+  }
+
+  async saveImageFromFile(file, fileName) {
+    const handle = this._dirStack[this._dirStack.length - 1];
+    const fileHandle = await handle.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(file);
+    await writable.close();
+    await this._loadCurrentDir();
+  }
+
+  async saveImageFromUrl(url, fileName) {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error('Failed to fetch image');
+    const blob = await res.blob();
+    const handle = this._dirStack[this._dirStack.length - 1];
+    const fileHandle = await handle.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    await this._loadCurrentDir();
+  }
+
+  async duplicateItem(name) {
+    const handle = this._dirStack[this._dirStack.length - 1];
+    const entry = await handle.getFileHandle(name).catch(() => handle.getDirectoryHandle(name));
+    if (entry.kind === 'directory') return;
+    const file = await (await handle.getFileHandle(name)).getFile();
+    const ext = name.includes('.') ? name.split('.').pop() : '';
+    const base = ext ? name.slice(0, -(ext.length + 1)) : name;
+    let copyName = `${base} copy.${ext}`;
+    let n = 2;
+    while (true) {
+      try { await handle.getFileHandle(copyName); copyName = `${base} copy ${n}.${ext}`; n++; }
+      catch { break; }
+    }
+    const fh = await handle.getFileHandle(copyName, { create: true });
+    const w = await fh.createWritable();
+    await w.write(await file.text());
+    await w.close();
+    await this._loadCurrentDir();
+  }
+
+  async renameItem(oldName, newName) {
+    const handle = this._dirStack[this._dirStack.length - 1];
+    const entry = await handle.getFileHandle(oldName).catch(() => handle.getDirectoryHandle(oldName));
+    const isDir = entry.kind === 'directory';
+
+    if (isDir) {
+      const oldDir = await handle.getDirectoryHandle(oldName);
+      const newDir = await handle.getDirectoryHandle(newName, { create: true });
+      for await (const child of oldDir.values()) {
+        if (child.kind === 'file') {
+          const fh = await oldDir.getFileHandle(child.name);
+          const file = await fh.getFile();
+          const nh = await newDir.getFileHandle(child.name, { create: true });
+          const w = await nh.createWritable();
+          await w.write(await file.text());
+          await w.close();
+        }
+      }
+      await handle.removeEntry(oldName, { recursive: true });
+    } else {
+      const oldFile = await handle.getFileHandle(oldName);
+      const file = await oldFile.getFile();
+      const newFile = await handle.getFileHandle(newName, { create: true });
+      const w = await newFile.createWritable();
+      await w.write(await file.text());
+      await w.close();
+      await handle.removeEntry(oldName);
+    }
+    await this._loadCurrentDir();
+  }
+
+  _renderEmpty() {
+    this.container.innerHTML = `<div class="explorer-header"><span>Files</span></div>
+      <div class="explorer-body"><div class="exp-empty">No workspace folder selected. Open Settings to choose one.</div></div>`;
+  }
+
+  _renderLocalFiles() {
+    const folderSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+    const current = this._dirStack[this._dirStack.length - 1];
+    const atRoot = this._dirStack.length === 1;
+    const displayPath = this.currentPath;
+
+    const backHtml = atRoot ? '' : '<button class="exp-back" id="exp-local-up" title="Go up">&larr;</button>';
     let html = `<div class="explorer-header">
-      <button class="exp-back" id="exp-back-btn" title="Back to projects">&larr;</button>
-      <span>${this._esc(project)}</span>
+      ${backHtml}
+      <span class="exp-label" title="${this._esc(displayPath)}">${this._esc(atRoot ? current.name : displayPath)}</span>
     </div>`;
     html += '<div class="explorer-actions">';
     html += '<button class="exp-btn" id="exp-new-file" title="New file">+ File</button>';
     html += '<button class="exp-btn" id="exp-new-folder" title="New folder">+ Folder</button>';
     html += '</div>';
     html += '<div class="explorer-body"><ul class="exp-tree">';
-    for (const f of files) {
-      const icon = f.type === 'dir' ? '&#128193;' : this._fileIcon(f.name);
-      html += `<li class="exp-item" data-path="${this._esc(f.path)}" data-type="${f.type}">
+    for (const e of this._entries) {
+      const icon = e.kind === 'directory' ? folderSvg : this._fileIcon(e.name);
+      html += `<li class="exp-item" data-name="${this._esc(e.name)}" data-kind="${e.kind}">
         <span class="exp-icon">${icon}</span>
-        <span class="exp-label">${this._esc(f.name)}</span>
-        <span class="exp-meta">${f.type === 'file' ? this._fileSize(f.size) : ''}</span>
+        <span class="exp-label">${this._esc(e.name)}</span>
+        <button class="exp-item-btn" title="More actions">&hellip;</button>
       </li>`;
     }
     html += '</ul></div>';
     this.container.innerHTML = html;
-    this._bindFileEvents();
+    this._bindEvents();
   }
 
-  _renderError(msg) {
-    this.container.innerHTML = `<div class="explorer-header"><span>Error</span></div>
-      <div class="explorer-body"><div class="exp-empty">${this._esc(msg)}</div></div>`;
-  }
-
-  _bindProjectEvents() {
-    document.querySelectorAll('.exp-project').forEach(el => {
-      el.addEventListener('click', () => {
-        const name = el.dataset.project;
-        this.openProject(name);
-      });
-      el.addEventListener('dblclick', () => {
-        const name = el.dataset.project;
-        this.openProject(name);
-      });
-    });
-    const newBtn = document.getElementById('new-project-btn');
-    if (newBtn) {
-      newBtn.addEventListener('click', () => this._promptCreateProject());
-    }
-  }
-
-  _bindFileEvents() {
+  _bindEvents() {
     document.querySelectorAll('.exp-item').forEach(el => {
-      el.addEventListener('click', () => {
-        const path = el.dataset.path;
-        const type = el.dataset.type;
-        if (type === 'file') {
-          this.openFile(path);
+      const name = el.dataset.name;
+      const kind = el.dataset.kind;
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('.exp-item-btn')) return;
+        if (kind === 'directory') {
+          this.navigateInto(name);
+        } else {
+          this.openFile(name);
         }
       });
-      el.addEventListener('dblclick', () => {
-        const path = el.dataset.path;
-        const type = el.dataset.type;
-        if (type === 'file') {
-          this.openFile(path);
+      el.addEventListener('dblclick', (e) => {
+        if (e.target.closest('.exp-item-btn')) return;
+        if (kind === 'directory') {
+          this.navigateInto(name);
+        } else {
+          this.openFile(name);
         }
       });
       el.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        this._showContextMenu(e.clientX, e.clientY, el.dataset.path, el.dataset.type);
+        this._showContextMenu(e.clientX, e.clientY, name, kind);
       });
+      const btn = el.querySelector('.exp-item-btn');
+      if (btn) {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = btn.getBoundingClientRect();
+          this._showContextMenu(rect.left, rect.bottom, name, kind);
+        });
+      }
     });
-    const backBtn = document.getElementById('exp-back-btn');
-    if (backBtn) backBtn.addEventListener('click', () => this.loadProjects());
+    const upBtn = document.getElementById('exp-local-up');
+    if (upBtn) upBtn.addEventListener('click', () => this.navigateUp());
     const newFileBtn = document.getElementById('exp-new-file');
-    if (newFileBtn) newFileBtn.addEventListener('click', () => this._promptCreateFile());
+    if (newFileBtn) newFileBtn.addEventListener('click', () => this._promptNewFile());
     const newFolderBtn = document.getElementById('exp-new-folder');
-    if (newFolderBtn) newFolderBtn.addEventListener('click', () => this._promptCreateFolder());
+    if (newFolderBtn) newFolderBtn.addEventListener('click', () => this._promptNewFolder());
   }
 
   _highlightActive(path) {
+    const fileName = path.split('/').pop();
     document.querySelectorAll('.exp-item').forEach(el => {
-      el.classList.toggle('exp-active', el.dataset.path === path);
+      el.classList.toggle('exp-active', el.dataset.name === fileName);
     });
   }
 
-  _showContextMenu(x, y, path, type) {
+  _showContextMenu(x, y, name, kind) {
     const existing = document.querySelector('.exp-context-menu');
     if (existing) existing.remove();
 
@@ -237,9 +282,9 @@ export class Explorer {
     menu.style.top = y + 'px';
 
     const items = [
-      { label: 'Rename', action: () => this._promptRename(path) },
-      type === 'file' ? { label: 'Delete', action: () => this._promptDelete(path, false) } : null,
-      type === 'dir' ? { label: 'Delete folder', action: () => this._promptDelete(path, true) } : null,
+      { label: 'Rename', action: () => this._promptRename(name, kind) },
+      kind === 'file' ? { label: 'Duplicate', action: () => this._promptDuplicate(name) } : null,
+      { label: 'Delete', action: () => this._promptDelete(name, kind) },
     ].filter(Boolean);
 
     for (const item of items) {
@@ -262,67 +307,55 @@ export class Explorer {
     setTimeout(() => document.addEventListener('click', close), 0);
   }
 
-  async _promptCreateProject() {
-    const name = prompt('Project name:');
+  async _promptNewFile() {
+    const name = prompt('File name (e.g., section):');
     if (!name || !name.trim()) return;
+    let fileName = name.trim();
+    if (!fileName.includes('.')) fileName += '.tex';
     try {
-      await this.createProject(name.trim());
-      await this.loadProjects();
+      await this.createFile(fileName);
       if (this._onFilesChanged) this._onFilesChanged();
     } catch (e) {
       alert(e.message);
     }
   }
 
-  async _promptCreateFile() {
-    const name = prompt('File name (e.g., section.tex):');
-    if (!name || !name.trim()) return;
-    try {
-      await this.createFile(name.trim());
-      await this.openProject(this.projectName);
-      if (this._onFilesChanged) this._onFilesChanged();
-    } catch (e) {
-      alert(e.message);
-    }
-  }
-
-  async _promptCreateFolder() {
+  async _promptNewFolder() {
     const name = prompt('Folder name:');
     if (!name || !name.trim()) return;
     try {
-      const res = await fetch(
-        `/workspace/projects/${encodeURIComponent(this.projectName)}/files/${encodeURIComponent(name.trim())}`,
-        { method: 'POST' }
-      );
-      if (!res.ok) throw new Error('Create failed');
-      await this.openProject(this.projectName);
+      await this.createFolder(name.trim());
       if (this._onFilesChanged) this._onFilesChanged();
     } catch (e) {
       alert(e.message);
     }
   }
 
-  async _promptDelete(path, isDir) {
-    const msg = isDir ? `Delete folder "${path}" and all contents?` : `Delete "${path}"?`;
+  async _promptDuplicate(name) {
+    try {
+      await this.duplicateItem(name);
+      if (this._onFilesChanged) this._onFilesChanged();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  async _promptDelete(name, kind) {
+    const msg = kind === 'directory' ? `Delete folder "${name}" and all contents?` : `Delete "${name}"?`;
     if (!confirm(msg)) return;
     try {
-      await this.deleteItem(path);
-      await this.openProject(this.projectName);
+      await this.deleteItem(name);
       if (this._onFilesChanged) this._onFilesChanged();
     } catch (e) {
       alert(e.message);
     }
   }
 
-  async _promptRename(path) {
-    const newName = prompt('New name:', path.split('/').pop());
-    if (!newName || !newName.trim()) return;
-    const parts = path.split('/');
-    parts[parts.length - 1] = newName.trim();
-    const newPath = parts.join('/');
+  async _promptRename(name, kind) {
+    const newName = prompt('New name:', name);
+    if (!newName || !newName.trim() || newName.trim() === name) return;
     try {
-      await this.renameItem(path, newPath);
-      await this.openProject(this.projectName);
+      await this.renameItem(name, newName.trim());
       if (this._onFilesChanged) this._onFilesChanged();
     } catch (e) {
       alert(e.message);
@@ -338,21 +371,15 @@ export class Explorer {
   _fileIcon(name) {
     const ext = name.split('.').pop().toLowerCase();
     const icons = {
-      tex: '&#120514;',
-      pdf: '&#128196;',
-      png: '&#128247;',
-      jpg: '&#128247;',
-      jpeg: '&#128247;',
-      cls: '&#9881;',
-      sty: '&#9881;',
-      bib: '&#128214;',
+      tex: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="12" y1="13" x2="12" y2="18"/></svg>',
+      pdf: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l3 3 6-6"/></svg>',
+      png: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+      jpg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+      jpeg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+      cls: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+      sty: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+      bib: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5A2.5 2.5 0 0 1 4 19.5v-15z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg>',
     };
-    return icons[ext] || '&#128196;';
-  }
-
-  _fileSize(bytes) {
-    if (bytes === 0) return '';
-    if (bytes < 1024) return bytes + 'B';
-    return (bytes / 1024).toFixed(1) + 'KB';
+    return icons[ext] || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
   }
 }

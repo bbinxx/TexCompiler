@@ -16,8 +16,9 @@ KNOWN_TEX_COMPILERS = [
 _LUALATEX_PKGS = r"\\usepackage(\[.*?\])?\{(luacode|luacolor|luamplib|luatexja|luabidi|luaplot)\}"
 # Packages that require xelatex
 _XELATEX_PKGS = r"\\usepackage(\[.*?\])?\{(xeCJK|xepersian)\}"
-# Packages that work with xelatex or lualatex (auto-switch from pdflatex)
-_UNICODE_PKGS = r"\\usepackage(\[.*?\])?\{fontspec\}"
+# Packages that need xelatex or lualatex (fontspec and relative)
+_UNICODE_PKGS = r"(\\usepackage(\[.*?\])?\{fontspec\}|\\(?:setmainfont|setsansfont|setmonofont|newfontfamily)\{)"
+_PDFTEX_COMPATIBLE = frozenset({"pdflatex", "latex", "pdftex", "tex"})
 
 
 _FONT_SEARCH_ROOTS = [
@@ -121,8 +122,10 @@ def detect_compiler(code: str, preferred: str) -> str:
         return "lualatex"
     if needs_xelatex:
         return "xelatex"
-    if needs_unicode and preferred == "pdflatex":
-        return "xelatex"
+    if needs_unicode:
+        if preferred.lower() in _PDFTEX_COMPATIBLE:
+            return "lualatex"
+        return preferred
 
     return preferred
 

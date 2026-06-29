@@ -5,7 +5,7 @@ import { Explorer } from './explorer.js';
 import { UI } from './ui.js';
 import { Settings } from './settings.js';
 import { DEFAULT_LATEX } from './defaults.js';
-import { detectCompiler } from './detector.js';
+import { detectCompiler, needsUnicodeEngine } from './detector.js';
 
 function debounce(fn, ms) {
   let timer;
@@ -189,7 +189,17 @@ function initApp() {
 
   async function handleCompile() {
     const code = getCode();
-    const compiler = ui.getCompiler();
+    let compiler = ui.getCompiler();
+
+    if (needsUnicodeEngine(code)) {
+      const unicodeCompilers = ['lualatex', 'xelatex'];
+      if (!unicodeCompilers.includes(compiler)) {
+        const fallback = ui.hasCompiler('lualatex') ? 'lualatex' : 'xelatex';
+        terminal.warning(`"${compiler}" cannot compile code using fontspec. Switching to "${fallback}".`);
+        compiler = fallback;
+        ui.setCompiler(compiler);
+      }
+    }
 
     terminal.clear();
     terminal.info('Starting compilation...');

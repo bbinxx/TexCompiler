@@ -13,13 +13,13 @@ ARG UBUNTU_SNAPSHOT=20261118T000000Z
 ENV DEBIAN_FRONTEND=noninteractive
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/@g" /etc/apt/sources.list.d/ubuntu.sources \
-    && apt-get -o Acquire::Retries=3 update \
-    && apt-get install -y --no-install-recommends ca-certificates curl util-linux \
+    && apt-get -o APT::Update::Error-Mode=any -o Acquire::Retries=5 -o Acquire::https::Timeout=30 update \
+    && apt-get -o Acquire::Retries=5 -o Acquire::https::Timeout=30 install -y --no-install-recommends ca-certificates curl util-linux \
        texlive-latex-extra texlive-xetex texlive-luatex texlive-fonts-recommended \
        texlive-bibtex-extra texlive-science latexmk biber ghostscript poppler-utils \
        fonts-dejavu-core ttf-bitstream-vera fonts-liberation fonts-font-awesome \
        meson ninja-build gcc libc6-dev pkg-config libcap-dev xz-utils \
-    && if [ "$TEX_PROFILE" = full ]; then apt-get install -y --no-install-recommends texlive-fonts-extra texlive-lang-all; \
+    && if [ "$TEX_PROFILE" = full ]; then apt-get -o Acquire::Retries=5 -o Acquire::https::Timeout=30 install -y --no-install-recommends texlive-fonts-extra texlive-lang-all; \
        elif [ "$TEX_PROFILE" != compatible ]; then echo 'TEX_PROFILE must be compatible or full' >&2; exit 1; fi \
     && curl -fsSL --retry 3 https://github.com/containers/bubblewrap/releases/download/v0.13.1/bubblewrap-0.13.1.tar.xz -o /tmp/bwrap.tar.xz \
     && echo '0e85c8702248b8dd64144f594147553650cdd0e4c951690345faace79c217c4d  /tmp/bwrap.tar.xz' | sha256sum --check \

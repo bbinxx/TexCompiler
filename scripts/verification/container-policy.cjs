@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const path='/proc/sys/user/max_user_namespaces';
 const before=readFileSync(path,'utf8');
 const flags=['run','--rm','--user','10001:10001','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges:true','--security-opt','seccomp=deploy/seccomp.json','--security-opt','apparmor=unconfined','--tmpfs','/tmp:size=67108864,mode=1777'];
-const bwrap=['--unshare-all','--disable-userns','--die-with-parent','--cap-drop','ALL','--ro-bind','/','/','--proc','/proc','--','/bin/sh','-ec','! /usr/bin/unshare --user --map-root-user /usr/bin/true'];
+const bwrap=['--unshare-all','--unshare-user','--disable-userns','--die-with-parent','--cap-drop','ALL','--ro-bind','/','/','--proc','/proc','--','/bin/sh','-ec','test -x /usr/bin/unshare; ! /usr/bin/unshare --user --map-root-user /usr/bin/true'];
 const denied=spawnSync('docker',[...flags,'--entrypoint','/usr/bin/bwrap','texcompiler:local',...bwrap],{encoding:'utf8',timeout:30000});
 assert.notEqual(denied.status,0,'default Docker profile unexpectedly allowed the required namespace write');
 assert.match(denied.stderr,/Read-only file system/,'negative control failed for an unexpected reason');

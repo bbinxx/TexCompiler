@@ -121,6 +121,7 @@ mod tests {
 [ ! -e '{}' ]
 [ -z "${{TEXCOMPILER_TEST_SECRET+x}}" ]
 [ ! -e /proc/self ]
+[ -x /usr/bin/unshare ]
 ! /usr/bin/unshare --user --map-root-user /usr/bin/true 2>/dev/null
 ! touch /project/write 2>/dev/null
 ! touch /usr/write 2>/dev/null

@@ -28,6 +28,7 @@ pub(crate) fn command(project: &Path, worker: &Path) -> Command {
         }
     }
     for path in [
+        "/etc/alternatives",
         "/etc/fonts",
         "/etc/texmf",
         "/var/lib/texmf",
@@ -120,9 +121,11 @@ mod tests {
 [ ! -e '{}' ]
 [ -z "${{TEXCOMPILER_TEST_SECRET+x}}" ]
 [ ! -e /proc/self ]
+[ -x /usr/bin/unshare ]
+! /usr/bin/unshare --user --map-root-user /usr/bin/true 2>/dev/null
 ! touch /project/write 2>/dev/null
 ! touch /usr/write 2>/dev/null
-/usr/bin/python3 -c 'import socket; s=socket.socket(); s.settimeout(1); assert s.connect_ex(("127.0.0.1",{})) != 0'
+/bin/bash -c 'if exec 3<>/dev/tcp/127.0.0.1/{}; then exit 1; fi'
 printf 'isolated'
 "#,
             marker.display(),

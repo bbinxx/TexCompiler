@@ -13,6 +13,11 @@ pub(super) async fn index() -> Html<String> {
 pub(super) async fn asset(Path(name): Path<String>) -> Response {
     let files: &[(&str, &[u8])] = &[
         (
+            "js/project.js",
+            include_bytes!("../../web/static/js/project.js"),
+        ),
+        ("js/auth.js", include_bytes!("../../web/static/js/auth.js")),
+        (
             "css/style.css",
             include_bytes!("../../web/static/css/style.css"),
         ),

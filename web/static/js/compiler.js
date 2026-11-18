@@ -1,11 +1,12 @@
+import { apiHeaders } from './auth.js';
 const COMPILE_ENDPOINT = '/compile';
 
-export async function compileCode(code, compiler) {
+export async function compileCode(code, compiler, project = null) {
   try {
     const response = await fetch(COMPILE_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, compiler }),
+      headers: apiHeaders(),
+      body: JSON.stringify(project ? {...project, compiler} : { code, compiler }),
     });
 
     if (response.ok) {
@@ -16,7 +17,7 @@ export async function compileCode(code, compiler) {
     const errorData = await response.json();
     return {
       success: false,
-      error: errorData.error || 'Compilation failed',
+      error: response.status === 401 ? 'Authentication required. Enter the API token in Settings.' : errorData.error || 'Compilation failed',
       log: errorData.log || null,
       warnings: errorData.warnings || [],
     };

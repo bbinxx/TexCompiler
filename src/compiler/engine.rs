@@ -54,12 +54,19 @@ impl Engine {
                 "-no-shell-escape",
                 "-interaction=nonstopmode",
                 "-halt-on-error",
-                "-jobname=document",
                 "-output-directory=/output",
             ]
             .map(str::to_string),
         );
+        args.push(format!("-jobname={}", job_name(main)));
         args.push(format!("./{main}"));
         args
     }
+}
+
+pub(crate) fn job_name(main: &str) -> &str {
+    std::path::Path::new(main)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("document")
 }

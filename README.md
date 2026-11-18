@@ -103,6 +103,14 @@ TEXCOMPILER_URL=http://127.0.0.1:8001 node scripts/verification/browser.cjs
 
 ## Migration and deployment
 
+The next cutover candidate is available through `compose.yaml` and
+`Dockerfile.rust`; its full container CI gate must pass before Python retirement.
+Remote listeners require `TEXCOMPILER_API_TOKEN` (32–256 printable ASCII characters).
+The IDE accepts this token in Settings, storing it only for the tab session.
+The selected workspace is now uploaded with its source, fonts and assets.
+Explicit compiler selections are preserved in both the API and IDE.
+See [runtime policy](deploy/README.md) before using the container candidate.
+
 [PR #4](https://github.com/bbinxx/TexCompiler/pull/4) introduces the working Rust
 service after the audit and API foundation. Stable v2 requires the remaining
 [migration gates](docs/MIGRATION.md). Optional WASM/caching/tuning do not block

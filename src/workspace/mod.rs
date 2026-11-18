@@ -20,7 +20,7 @@ pub enum InputError {
 
 pub(crate) fn validate_path(path: &str) -> Result<(), InputError> {
     if path.len() > 2048
-        || path.contains(['\\', ':'])
+        || path.contains(['\\', ':', '"', '\'', '`', '$', ';', '&', '|', '<', '>'])
         || path.chars().any(char::is_control)
         || path.split('/').any(|part| {
             part.len() > 255

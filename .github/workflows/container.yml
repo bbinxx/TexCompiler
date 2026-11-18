@@ -1,0 +1,43 @@
+name: Rust container
+on:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev]
+permissions:
+  contents: read
+jobs:
+  container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      TEXCOMPILER_API_TOKEN: ci-only-texcompiler-token-for-isolated-test
+      TEXCOMPILER_PORT: "18001"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable namespaces on the disposable runner
+        run: |
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Build and verify namespace policy without host sysctl changes
+        run: |
+          docker compose -p texcompiler-ci build
+          node scripts/verification/container-policy.cjs
+      - name: Start the exact restricted service profile
+        run: docker compose -p texcompiler-ci up -d
+      - name: Verify runtime, API, engines, fonts and bibliography
+        run: node scripts/verification/container.cjs
+      - name: Verify rendered browser PDF
+        env:
+          TEXCOMPILER_URL: http://127.0.0.1:18001
+        run: node scripts/verification/browser.cjs
+      - name: Capture container diagnostics
+        if: always()
+        run: docker compose -p texcompiler-ci logs
+      - name: Stop isolated test service
+        if: always()
+        run: docker compose -p texcompiler-ci down

@@ -47,11 +47,14 @@ fn read_bounded(path: &Path, limit: usize) -> io::Result<(Vec<u8>, bool)> {
     Ok((bytes, truncated))
 }
 
-fn diagnostics() -> String {
+fn diagnostics(job: &str) -> String {
     let mut log = String::new();
-    for path in ["/output/document.log", "/output/process.log"] {
+    for path in [
+        format!("/output/{job}.log"),
+        "/output/.texcompiler/process.log".into(),
+    ] {
         let (bytes, truncated) =
-            read_bounded(Path::new(path), protocol::MAX_DIAGNOSTICS / 2 - 128).unwrap_or_default();
+            read_bounded(Path::new(&path), protocol::MAX_DIAGNOSTICS / 2 - 128).unwrap_or_default();
         log.push_str(&String::from_utf8_lossy(&bytes));
         if truncated {
             log.push_str("\n[diagnostics truncated]\n");
@@ -63,13 +66,15 @@ fn diagnostics() -> String {
 }
 
 fn compile(request: &Request) -> Result<Response, Box<dyn std::error::Error>> {
+    let job = super::engine::job_name(&request.main_file);
+    std::fs::create_dir_all("/output/.texcompiler")?;
     let executable = request.engine.executable();
     if !Path::new(executable).is_file() {
         return Ok(Response::Failure {
             log: "requested engine is not installed".into(),
         });
     }
-    let version_file = File::create("/output/version.log")?;
+    let version_file = File::create("/output/.texcompiler/version.log")?;
     let status = Command::new(executable)
         .arg("--version")
         .stdin(Stdio::null())
@@ -81,7 +86,7 @@ fn compile(request: &Request) -> Result<Response, Box<dyn std::error::Error>> {
             log: "engine version probe failed".into(),
         });
     }
-    let (version, _) = read_bounded(Path::new("/output/version.log"), 16 * 1024)?;
+    let (version, _) = read_bounded(Path::new("/output/.texcompiler/version.log"), 16 * 1024)?;
     let engine_version = String::from_utf8_lossy(&version)
         .lines()
         .next()
@@ -89,7 +94,7 @@ fn compile(request: &Request) -> Result<Response, Box<dyn std::error::Error>> {
         .to_owned();
     let latexmk = Path::new("/usr/bin/latexmk").is_file();
     for _ in 0..if latexmk { 1 } else { 3 } {
-        let output = File::create("/output/process.log")?;
+        let output = File::create("/output/.texcompiler/process.log")?;
         let status = Command::new(if latexmk {
             "/usr/bin/latexmk"
         } else {
@@ -102,10 +107,15 @@ fn compile(request: &Request) -> Result<Response, Box<dyn std::error::Error>> {
         .stderr(output)
         .status()?;
         if !status.success() {
-            return Ok(Response::Failure { log: diagnostics() });
+            return Ok(Response::Failure {
+                log: diagnostics(job),
+            });
         }
     }
-    let (pdf, truncated) = read_bounded(Path::new("/output/document.pdf"), protocol::MAX_PDF)?;
+    let (pdf, truncated) = read_bounded(
+        &Path::new("/output").join(format!("{job}.pdf")),
+        protocol::MAX_PDF,
+    )?;
     if truncated {
         return Ok(Response::Failure {
             log: "PDF exceeds output limit".into(),
@@ -118,8 +128,8 @@ fn compile(request: &Request) -> Result<Response, Box<dyn std::error::Error>> {
             log: "output PDF has no pages".into(),
         });
     }
-    let log = diagnostics();
-    let warnings = final_warnings(Path::new("/output"));
+    let log = diagnostics(job);
+    let warnings = final_warnings(Path::new("/output"), job);
     // Drop parsed objects before allocating the base64 transport envelope.
     drop(document);
     Ok(Response::Success {
@@ -138,10 +148,12 @@ fn compile(request: &Request) -> Result<Response, Box<dyn std::error::Error>> {
     })
 }
 
-fn final_warnings(output: &Path) -> Vec<String> {
-    let (bytes, truncated) =
-        read_bounded(&output.join("document.log"), protocol::MAX_DIAGNOSTICS - 64)
-            .unwrap_or_default();
+fn final_warnings(output: &Path, job: &str) -> Vec<String> {
+    let (bytes, truncated) = read_bounded(
+        &output.join(format!("{job}.log")),
+        protocol::MAX_DIAGNOSTICS - 64,
+    )
+    .unwrap_or_default();
     let mut text = String::from_utf8_lossy(&bytes).into_owned();
     text.truncate(text.floor_char_boundary(protocol::MAX_DIAGNOSTICS - 64));
     let mut warnings: Vec<String> = text
@@ -167,14 +179,14 @@ mod tests {
             "LaTeX Warning: Reference undefined on first pass\n",
         )
         .unwrap();
-        assert!(final_warnings(dir.path()).is_empty());
+        assert!(final_warnings(dir.path(), "document").is_empty());
         std::fs::write(
             dir.path().join("document.log"),
             "LaTeX Warning: Genuine final warning\n",
         )
         .unwrap();
         assert_eq!(
-            final_warnings(dir.path()),
+            final_warnings(dir.path(), "document"),
             vec!["LaTeX Warning: Genuine final warning"]
         );
     }

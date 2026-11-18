@@ -57,6 +57,11 @@ fn rejects_nonportable_and_option_like_paths_before_writing() {
         "a\n.tex",
         "a\0.tex",
         "trailing/",
+        "$(id).tex",
+        "quote\".tex",
+        "quote'.tex",
+        "semi;colon.tex",
+        "back`tick.tex",
     ] {
         assert!(
             project(&[("main.tex", b"source"), (name, b"bad")], "main.tex").is_err(),

@@ -1,6 +1,6 @@
 # Development
 
-Production remains Python/FastAPI, version 1.3.0. Rust is planned, not shipped.
+Production remains Python/FastAPI, version 1.3.0. The parallel Rust foundation is development-only; compilation remains Python.
 
 ## Setup and verification
 
@@ -48,3 +48,32 @@ security review. Review and install remaining guidance before Rust work.
 New FastAPI/Starlette on this host emits a TestClient HTTPX deprecation warning;
 the suite passes. Runtime requirements use minimum versions, not pins. A locked
 Python test environment remains a follow-up reproducibility task.
+
+## Rust foundation
+
+`rust-toolchain.toml` pins Rust 1.100.0 and Cargo.lock locks dependency resolution.
+Run `cargo run --locked` for a separate listener at 127.0.0.1:8001. Override with
+`TEXCOMPILER_BIND=127.0.0.1:9001`; numeric IPv4/IPv6 socket addresses are accepted,
+invalid/empty values fail startup. Python PORT does not configure this listener.
+RUST_LOG controls tracing (default info). Stop using the normal process signal.
+No compilation worker, IDE, legacy routes or authentication run in this binary.
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-features
+cargo build --locked --release
+```
+
+Foundation TDD evidence: empty router returned 404 for both requested endpoints;
+the config test failed to import the missing parser. After implementation six
+Rust integration tests pass. CI runs the same checks separately from Python.
+No compilation performance change is claimed. Dependency/license audit tooling,
+generated OpenAPI and native worker tests remain future gates.
+
+Rust-specific guidance was subsequently located and read upstream at
+https://github.com/leonardomso/rust-skills/blob/master/SKILL.md (v1.5.1), without
+installing third-party files. Applied typed boundary parsing, propagated errors,
+no unsafe code, no user-input panics, and async route tests. Axum/Tower usage
+was checked against their primary docs at https://docs.rs/axum/0.8.9/axum/ and
+https://docs.rs/tower/0.5.3/tower/trait.ServiceExt.html.

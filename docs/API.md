@@ -34,5 +34,15 @@ error/log/warnings on failure. It does not upload the full local workspace.
 Vitae Forge and TexSpace were not checked externally; do not claim those clients
 are verified from these server tests alone.
 
-Versioned `/api/v1/*` routes, authentication, jobs, capabilities, and OpenAPI
-for new features are planned in ARCHITECTURE.md; none exist yet.
+## Parallel Rust foundation
+
+On its separate listener (default 127.0.0.1:8001), Rust implements:
+
+- GET /api/v1/health: 200 `{status:"starting",compilation_ready:false}`.
+- GET /api/v1/capabilities: 200 `{backends:[],compilation_ready:false}`.
+
+HTTP 200 here proves the foundation listener responds, not compilation
+readiness. Legacy routes and the IDE remain on Python (default port 8000).
+Other Rust paths return 404. Authentication, jobs, engines, native execution,
+WASM and generated versioned OpenAPI remain planned; no client traffic should
+be redirected to the foundation.

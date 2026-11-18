@@ -32,13 +32,36 @@ worker profile. A Procfile alone does not install TeX or grant those permissions
 
 ## Docker Compose
 
-Install Docker Engine and the Compose plugin. From the repository root:
+Follow the [Docker installation steps](INSTALLATION.md#docker-host-setup)
+first. From the repository root, create a local `.env` once. This command
+refuses to overwrite an existing file. If you already have one, add
+`TEXCOMPILER_API_TOKEN` to it manually and keep its permissions restricted.
 
 ```sh
-export TEXCOMPILER_API_TOKEN="$(openssl rand -hex 32)"
-docker compose up --build -d
-docker compose logs -f
+(set -euC; umask 077; token=$(openssl rand -hex 32); printf 'TEXCOMPILER_API_TOKEN=%s\n' "$token" > .env)
+docker compose config --quiet
+docker compose up --build -d --wait
+docker compose ps
 curl --fail http://127.0.0.1:8001/ready
+```
+
+Compose reads `.env` from the project directory. The file is ignored by Git
+and excluded from the image build context. Use `config --quiet` for validation
+so the interpolated token stays out of terminal output. Exported shell variables
+override `.env` values when both are set.
+
+Open `http://127.0.0.1:8001` and enter the token in **Settings**, or generate a
+PDF through the API. The example below assumes `.env` contains the token line
+created above. Adjust the URL if you change the host port.
+
+```sh
+token=$(sed -n 's/^TEXCOMPILER_API_TOKEN=//p' .env)
+curl --fail-with-body http://127.0.0.1:8001/compile \
+  -H "Authorization: Bearer $token" \
+  -H 'Content-Type: application/json' \
+  --data-binary '{"code":"\\documentclass{article}\\begin{document}Hello from Docker\\end{document}","compiler":"pdflatex"}' \
+  -o docker-test.pdf
+unset token
 ```
 
 Keep the generated token in your secret manager; do not paste it into source
@@ -50,13 +73,18 @@ trusted client/gateway. Compose publishes only loopback port 8001 by default.
 # Different host port:
 TEXCOMPILER_PORT=9000 docker compose up -d
 # Additional fonts/languages (larger image):
-TEXCOMPILER_TEX_PROFILE=full docker compose build
-docker compose up -d
+TEXCOMPILER_TEX_PROFILE=full docker compose up --build -d --wait
 # Inspect or stop:
 docker compose ps
 docker compose logs --tail=100
 docker compose down
 ```
+
+For a persistent port or profile, set `TEXCOMPILER_PORT=9000` or
+`TEXCOMPILER_TEX_PROFILE=full` in `.env`. The port setting changes the host
+port only. The container still listens on 8000. If startup fails, inspect
+`docker compose logs --tail=100 texcompiler`. A namespace or mount error means
+the host policy needs to support Bubblewrap. See the [runtime policy](../deploy/README.md).
 
 The compatible profile is the tested practical set; full adds broader fonts
 and languages. The TeX footprint remains substantial. Record the image ID and

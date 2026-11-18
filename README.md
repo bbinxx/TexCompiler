@@ -111,13 +111,20 @@ curl --fail-with-body http://127.0.0.1:8001/compile \
 
 ## Run with Docker Compose
 
-On a Linux host supporting the [worker policy](deploy/README.md):
+Install Docker Engine, Buildx and the Compose plugin on a Linux host that
+supports the [worker policy](deploy/README.md). The image supplies Rust,
+TeX Live and Bubblewrap. Run these commands from the repository root.
 
 ```sh
 export TEXCOMPILER_API_TOKEN="$(openssl rand -hex 32)"
-docker compose up --build -d
+docker compose version
+docker compose up --build -d --wait
 curl --fail http://127.0.0.1:8001/ready
 ```
+
+Open **http://127.0.0.1:8001**, enter the token in **Settings**, and click
+**Compile** to render the sample. See the [Docker deployment guide](docs/DEPLOYMENT.md#docker-compose)
+for persistent configuration, an authenticated PDF request, and troubleshooting.
 
 Enter the token in the IDE's Settings, or send `Authorization: Bearer TOKEN`.
 The token stays in the browser tab's session. Keep it on your server or trusted
@@ -141,7 +148,7 @@ docker compose logs -f
 docker compose ps
 docker compose down
 # Build the broader package profile:
-TEXCOMPILER_TEX_PROFILE=full docker compose build
+TEXCOMPILER_TEX_PROFILE=full docker compose up --build -d --wait
 ```
 
 For plain `docker build`/`docker run`, systemd installation, a platform PORT,

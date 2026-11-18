@@ -5,7 +5,32 @@ on Linux x86_64 with distro TeX installed under /usr/bin and /usr/share.
 An upstream TeX installation under /usr/local/texlive is not currently mounted
 by the worker. Use the pinned Docker image profile for a consistent environment.
 
-## Required components
+## Docker host setup
+
+Use a Linux host that supports the [container runtime policy](../deploy/README.md).
+Install Docker Engine, Buildx and the Compose plugin for your distribution.
+For Ubuntu, follow Docker’s repository setup and install the Engine packages
+listed there. [Docker Engine installation](https://docs.docker.com/engine/install/ubuntu/)
+· [Compose plugin installation](https://docs.docker.com/compose/install/linux/)
+
+Verify your current account can reach the Docker daemon and build images.
+On a systemd host, start the daemon with `sudo systemctl start docker` if it
+is stopped. If Docker reports a socket permission error, use your host’s
+approved access method. [Docker Linux post-installation](https://docs.docker.com/engine/install/linux-postinstall/)
+
+```sh
+docker info
+docker buildx version
+docker compose version
+openssl version
+curl --version
+```
+
+Allow disk space for TeX Live and intermediate build layers. Continue with
+[Docker Compose setup](DEPLOYMENT.md#docker-compose) to configure a token,
+start the container and generate a PDF.
+
+## Required components for native installation
 
 | Component | Why |
 |---|---|

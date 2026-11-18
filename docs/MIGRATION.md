@@ -5,7 +5,8 @@
 Phase 0 is partial: source/runtime audit, contract characterization, trusted
 basic and multi-file fixtures, security findings and local timing samples.
 Python production code, Docker entry point, browser assets and runtime
-requirements are unchanged. No Rust service or WASM backend is implemented.
+requirements are unchanged. A parallel Rust health/capabilities foundation is implemented; no Rust compilation
+or WASM backend is implemented.
 
 Audited tracked Python/config/deployment/release/browser sources at 54c5d89.
 No pre-existing tests or AGENTS/DEVELOPMENT guidance existed. Git origin HEAD
@@ -45,3 +46,13 @@ production switch, publish immutable old/new image digests, record configuration
 and API routing, and rehearse restoring traffic to the previous Python image.
 Preserve project inputs; isolate or invalidate Rust caches by environment
 fingerprint. No rollback drill or production switch has occurred yet.
+
+## Foundation progress
+
+The approved foundation plan introduces only GET /api/v1/health and
+GET /api/v1/capabilities on a separate loopback listener. Six Rust tests cover
+truthful readiness, backend inventory, unknown/legacy routes and bind parsing.
+Rust toolchain/dependency lock and fmt/clippy/test/release CI are present.
+This completes the initial foundation slice, not all of Phase 1 or Phase 0.
+The worker security specification is the next reviewed deliverable; no TeX
+execution endpoint should be added before its enforceable isolation design.

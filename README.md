@@ -201,8 +201,8 @@ docker run -p 8000:8000 texcompiler
 
 ## Rust migration status
 
-The production service is still Python v1.3.0. Rust migration is in the audit
-and baseline stage; no Rust or WASM backend is available yet. See
+The production service is still Python v1.3.0. A parallel Rust API foundation provides versioned health and capability
+endpoints only; native Rust compilation and WASM are not available yet. See
 [the migration gates](docs/MIGRATION.md), [development workflow](docs/DEVELOPMENT.md),
 [API baseline](docs/API.md), and [security audit](docs/SECURITY.md).
 The current compiler enables shell escape and lacks process isolation; use

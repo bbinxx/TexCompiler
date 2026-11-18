@@ -115,3 +115,53 @@ paths/ZIP limits and remote authentication replace unsafe/inconsistent v1 quirks
 Automatic host font-path rewriting and arbitrary executable names are removed.
 These changes are documented rather than emulating vulnerabilities. See
 CLIENTS.md for unchanged request models and authentication-header examples.
+
+## Generate a PDF
+
+With the local Rust service running on port 8001, save a PDF from a JSON request:
+
+```sh
+curl --fail-with-body -D pdf-headers.txt \
+  -H 'Content-Type: application/json' \
+  --data-binary '{"code":"\\documentclass{article}\\begin{document}Hello from TexCompiler\\end{document}","compiler":"pdflatex"}' \
+  http://127.0.0.1:8001/compile -o hello.pdf
+```
+
+Check that curl exits successfully before opening the file. On failure the file
+can contain JSON diagnostics instead of a PDF. For a token-protected server,
+add `-H "Authorization: Bearer $TEXCOMPILER_API_TOKEN"` to each POST example.
+
+## Build a multi-file project
+
+```sh
+curl --fail-with-body http://127.0.0.1:8001/api/v1/projects/compile \
+  -H 'Content-Type: application/json' \
+  --data-binary '{"main_file":"main.tex","files":{"main.tex":"\\documentclass{article}\\begin{document}\\input{body}\\end{document}","body.tex":"Text from a second file."}}' \
+  -o project.pdf
+```
+
+For a project with binary assets, use the ZIP example above or encode each font
+or image as base64 in the JSON `files` map. Keep the original paths. For example,
+place an uploaded font at `fonts/Regular.otf`, select `xelatex` or `lualatex`,
+and use `\setmainfont[Path=fonts/]{Regular.otf}` with `fontspec`.
+Include bibliography databases and style files in the project. Install latexmk
+and the required BibTeX or Biber executable on the server for bibliography builds.
+
+## Select an engine and inspect the service
+
+```sh
+curl --fail http://127.0.0.1:8001/compilers
+curl --fail http://127.0.0.1:8001/health
+curl --fail http://127.0.0.1:8001/ready
+curl --fail http://127.0.0.1:8001/api/v1/capabilities
+curl --fail http://127.0.0.1:8001/detect-compiler \
+  -H 'Content-Type: application/json' \
+  --data-binary '{"code":"\\usepackage{fontspec}","preferred":"pdflatex"}'
+```
+
+Detection returns a recommendation and does not compile. Use the returned engine
+in a subsequent request or omit `compiler` and let the service detect it. An
+explicit engine is used as provided. The `X-TexCompiler-Engine`,
+`X-TexCompiler-Pages` and `X-TexCompiler-Method` headers describe the completed
+build. Check the status before interpreting the body and see the response table
+above for retry and error handling. For integration snippets, see [Client integration](CLIENTS.md).

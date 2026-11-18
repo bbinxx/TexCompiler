@@ -1,28 +1,57 @@
-# Use a lightweight Python image
-FROM python:3.11-slim
+# syntax=docker/dockerfile:1
+FROM rust:1.100.0-bookworm@sha256:ade39a710ef85f3506cffcfec3e8a24ba090badef1dff2fb798f71d878833fea AS rust-build
+WORKDIR /build
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY src ./src
+COPY web ./web
+COPY scripts/dev/collect-rust-licenses.sh ./collect-rust-licenses.sh
+RUN cargo build --locked --release --bins && bash collect-rust-licenses.sh /rust-licenses
 
-# Install LaTeX dependencies
-RUN apt-get update && apt-get install -y \
-    texlive-latex-extra \
-    texlive-xetex \
-    texlive-fonts-recommended \
-    texlive-lang-all \
-    latexmk \
-    ghostscript \
-    && rm -rf /var/lib/apt/lists/*
+FROM ubuntu:24.04@sha256:73b999393d07f2bf65a40373778a44dc9a6d54ad7718d29247d8ff9413c4d6a8 AS tex-build
+COPY --from=rust-build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+ARG TEX_PROFILE=compatible
+ARG UBUNTU_SNAPSHOT=
+ENV DEBIAN_FRONTEND=noninteractive
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN if [ -n "$UBUNTU_SNAPSHOT" ]; then \
+      sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/@g" /etc/apt/sources.list.d/ubuntu.sources; \
+    else sed -i 's@http://@https://@g' /etc/apt/sources.list.d/ubuntu.sources; fi \
+    && apt-get -o APT::Update::Error-Mode=any -o Acquire::Retries=5 -o Acquire::https::Timeout=30 update \
+    && apt-get -o Acquire::Retries=5 -o Acquire::https::Timeout=30 install -y --no-install-recommends ca-certificates curl util-linux \
+       texlive-latex-extra texlive-xetex texlive-luatex texlive-fonts-recommended \
+       texlive-bibtex-extra texlive-science latexmk biber ghostscript poppler-utils \
+       fonts-dejavu-core ttf-bitstream-vera fonts-liberation fonts-font-awesome \
+       meson ninja-build gcc libc6-dev pkg-config libcap-dev xz-utils \
+    && if [ "$TEX_PROFILE" = full ]; then apt-get -o Acquire::Retries=5 -o Acquire::https::Timeout=30 install -y --no-install-recommends texlive-fonts-extra texlive-lang-all; \
+       elif [ "$TEX_PROFILE" != compatible ]; then echo 'TEX_PROFILE must be compatible or full' >&2; exit 1; fi \
+    && curl -fsSL --retry 3 https://github.com/containers/bubblewrap/releases/download/v0.13.1/bubblewrap-0.13.1.tar.xz -o /tmp/bwrap.tar.xz \
+    && echo '0e85c8702248b8dd64144f594147553650cdd0e4c951690345faace79c217c4d  /tmp/bwrap.tar.xz' | sha256sum --check \
+    && tar -xf /tmp/bwrap.tar.xz -C /tmp \
+    && meson setup /tmp/bwrap-build /tmp/bubblewrap-0.13.1 -Dman=disabled -Dtests=false -Dselinux=disabled \
+    && meson compile -C /tmp/bwrap-build \
+    && install -m 0755 /tmp/bwrap-build/bwrap /usr/bin/bwrap \
+    && mkdir -p /runtime-root/app /runtime-root/tmp \
+    && chmod 1777 /runtime-root/tmp \
+    && dpkg-query -W > /runtime-root/app/package-manifest.txt \
+    && printf '%s\n' "${UBUNTU_SNAPSHOT:-canonical Ubuntu 24.04; exact versions in package-manifest.txt}" > /runtime-root/app/package-snapshot.txt \
+    && tar --exclude='./usr/bin/python*' --exclude='./usr/bin/pip*' \
+       --exclude='./usr/lib/python*' --exclude='./usr/local/lib/python*' \
+       --exclude='./usr/share/python*' \
+       --exclude='./usr/share/man' --exclude='./usr/share/info' \
+       --exclude='./usr/include' --exclude='./usr/lib/gcc' \
+       --exclude='./etc/apt' -C / -cf - ./usr ./bin ./sbin ./lib ./lib64 ./etc ./var/lib/texmf \
+       | tar -xf - -C /runtime-root
 
-# Set working directory
+# Copy the assembled runtime, not the build environment or its Python layers.
+# TeX utilities requiring Python/shell escape are outside this service's policy.
+FROM scratch AS runtime
+COPY --from=tex-build /runtime-root/ /
+COPY --from=rust-build /build/target/release/texcompiler /usr/local/bin/texcompiler
+COPY --from=rust-build /build/target/release/texcompiler-worker /usr/local/bin/texcompiler-worker
+COPY --from=rust-build /rust-licenses /app/rust-licenses
+USER 10001:10001
 WORKDIR /app
-
-# Copy requirements and install
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY . .
-
-# Expose port
+ENV PORT=8000 RUST_LOG=info HOME=/tmp
 EXPOSE 8000
-
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 CMD curl --fail --silent "http://127.0.0.1:${PORT}/ready" || exit 1
+ENTRYPOINT ["/usr/local/bin/texcompiler"]

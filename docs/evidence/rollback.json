@@ -1,0 +1,18 @@
+{
+  "scope": "Local HTTP routing rollback rehearsal; no public traffic or production image deployment changed",
+  "referenceSourceCommit": "8f87470ab4f9c47458fd0a217199617a0478a784",
+  "records": [
+    {
+      "target": "rust",
+      "compiled": true
+    },
+    {
+      "target": "python",
+      "compiled": true
+    },
+    {
+      "target": "rust",
+      "compiled": true
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "environment": "Linux 7.3.4-arch1-2 x86_64",
+  "texVersion": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026/Arch Linux)",
+  "transport": "HTTP loopback for both implementations",
+  "notes": "Sequential single samples; Rust includes isolation and three TeX passes, Python one pass. These are compatibility observations, not a statistically controlled speedup claim.",
+  "records": [
+    {
+      "fixture": "basic-pdflatex",
+      "checks": {
+        "pages": true,
+        "text": true,
+        "fontNames": true,
+        "pixelRendering72dpi": true
+      },
+      "timing": {
+        "pythonMs": 138.43530199999998,
+        "rustMs": 212.21256600000004
+      },
+      "pages": 1,
+      "fonts": [
+        "CMR10"
+      ]
+    },
+    {
+      "fixture": "basic-xelatex",
+      "checks": {
+        "pages": true,
+        "text": true,
+        "fontNames": true,
+        "pixelRendering72dpi": true
+      },
+      "timing": {
+        "pythonMs": 219.5138619999999,
+        "rustMs": 1000.938495
+      },
+      "pages": 1,
+      "fonts": [
+        "LMRoman10-Regular-Identity-H"
+      ]
+    },
+    {
+      "fixture": "basic-lualatex",
+      "checks": {
+        "pages": true,
+        "text": true,
+        "fontNames": true,
+        "pixelRendering72dpi": true
+      },
+      "timing": {
+        "pythonMs": 285.57034699999986,
+        "rustMs": 5012.751803
+      },
+      "pages": 1,
+      "fonts": [
+        "LMRoman10-Regular"
+      ]
+    },
+    {
+      "fixture": "multi-file",
+      "checks": {
+        "pages": true,
+        "text": true,
+        "fontNames": true,
+        "pixelRendering72dpi": true
+      },
+      "timing": {
+        "pythonMs": 63.35331900000074,
+        "rustMs": 208.35811300000023
+      },
+      "pages": 1,
+      "fonts": [
+        "CMR10"
+      ]
+    },
+    {
+      "fixture": "resume-class-package-tikz-table",
+      "checks": {
+        "pages": true,
+        "text": true,
+        "fontNames": true,
+        "pixelRendering72dpi": true
+      },
+      "timing": {
+        "pythonMs": 240.4264920000005,
+        "rustMs": 693.6715429999995
+      },
+      "pages": 1,
+      "fonts": [
+        "CMBX12",
+        "CMR10"
+      ]
+    },
+    {
+      "fixture": "cover-letter",
+      "checks": {
+        "pages": true,
+        "text": true,
+        "fontNames": true,
+        "pixelRendering72dpi": true
+      },
+      "timing": {
+        "pythonMs": 55.00908400000117,
+        "rustMs": 193.9771550000005
+      },
+      "pages": 1,
+      "fonts": [
+        "CMR10"
+      ]
+    },
+    {
+      "fixture": "jobname",
+      "checks": {
+        "pages": true,
+        "text": true,
+        "fontNames": true,
+        "pixelRendering72dpi": true
+      },
+      "timing": {
+        "pythonMs": 63.860945000000356,
+        "rustMs": 200.9798750000009
+      },
+      "pages": 1,
+      "fonts": [
+        "CMR10"
+      ]
+    }
+  ]
+}

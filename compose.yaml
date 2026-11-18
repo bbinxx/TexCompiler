@@ -1,0 +1,32 @@
+services:
+  texcompiler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TEX_PROFILE: ${TEXCOMPILER_TEX_PROFILE:-compatible}
+    image: texcompiler:local
+    init: true
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./deploy/seccomp.json
+      # bwrap changes only its NEW user namespace's limit to block nesting.
+      - systempaths=unconfined
+      # The default Docker AppArmor profile denies nested namespace mounts.
+      # Scope this exception to the service; never change the host's policy here.
+      - apparmor=unconfined
+    pids_limit: 128
+    mem_limit: 3g
+    cpus: 2
+    tmpfs:
+      - /tmp:size=536870912,mode=1777,nosuid,nodev
+    environment:
+      PORT: "8000"
+      TEXCOMPILER_API_TOKEN: ${TEXCOMPILER_API_TOKEN:?Set a random token of at least 32 ASCII characters}
+    ports:
+      - "127.0.0.1:${TEXCOMPILER_PORT:-8001}:8000"
+    stop_grace_period: 150s
+    restart: unless-stopped

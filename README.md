@@ -1,200 +1,230 @@
-# TexCompiler
+# TexCompiler v2
 
-A high-performance LaTeX to PDF compilation service with a browser-based IDE, local file system access, and auto font path resolution.
+**Rust migration complete — `2.0.0-rc.1`, release candidate.** Axum/Tokio serves
+the browser IDE and compiles LaTeX through isolated native TeX Live workers.
+Python application code, dependency manifests and launchers have been removed.
+No Python interpreter is needed by the service or included in its runtime image.
 
-## Features
+## Choose how to run
 
-- **Browser IDE** — Ace Editor with LaTeX syntax highlighting, PDF preview, and build console
-- **Local Workspace** — pick any folder on your device as the workspace; files are read/written directly via the File System Access API (no server-side storage)
-- **File Explorer** — sidebar tree with directory navigation, create/rename/delete/duplicate files
-- **Image Insertion** — add images from your device or a URL; saved to your workspace and inserted as `\includegraphics{}`
-- **Multi-Compiler** — pdflatex, xelatex, lualatex with automatic engine detection from code content
-- **Auto Font Resolution** — font paths in `\setmainfont{...}[Path = ...]` are automatically corrected to match the system
-- **latexmk** — automatic multi-pass compilation for cross-references and bibliographies
-- **Session Persistence** — workspace folder handle is stored in IndexedDB and restored across page refreshes
-- **Cross-Platform** — Linux, macOS, Windows (native `.bat` + cross-shell `.sh`)
-
-## Quick Start
-
-```bash
-# Install LaTeX (Ubuntu/Debian)
-sudo apt install texlive-full latexmk
-
-# Install LaTeX (macOS)
-brew install --cask mactex
-
-# Run
-./run.sh        # Linux / macOS / Git Bash
-run.bat         # Windows (cmd.exe)
-```
-
-Opens at `http://localhost:8000`.
-
-## Usage
-
-1. Open the app, then click the **Settings** (gear) icon in the header
-2. Click **Select Folder** to choose a workspace folder on your device
-3. The sidebar file explorer shows the folder contents — navigate into subdirectories
-4. Click any `.tex` file to open it in the editor
-5. Edit freely — **Ctrl+S** or click the Save button to persist
-6. Files auto-save before each compile
-7. Press **Ctrl+Enter** or click **Compile** to generate the PDF
-8. **Right-click** any file or click the **`…`** button for Rename / Duplicate / Delete
-9. Click the **image icon** to insert images from your device or a URL
-
-## API
-
-The API can be used independently of the web IDE for headless compilation.
-
-### `POST /compile`
-
-Compile raw LaTeX code and receive a PDF.
-
-**Request (JSON):**
-
-```json
-{
-  "code": "\\documentclass{article}\\begin{document}Hello\\end{document}",
-  "compiler": "pdflatex"
-}
-```
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `code` | string | — | LaTeX source code |
-| `files` | object | `null` | Map of filename → content for multi-file projects |
-| `main_file` | string | `"document.tex"` | Entry point when using `files` |
-| `compiler` | string | `"pdflatex"` | Compiler engine |
-
-**Response:** `application/pdf` binary stream on success, or `application/json` error on failure.
-
-**Example (curl):**
-
-```bash
-curl -X POST http://localhost:8000/compile \
-  -H "Content-Type: application/json" \
-  -d '{"code":"\\documentclass{article}\\begin{document}Hello\\end{document}"}' \
-  -o output.pdf
-```
-
-**Multi-file example (curl):**
-
-```bash
-curl -X POST http://localhost:8000/compile \
-  -H "Content-Type: application/json" \
-  -d '{
-    "files": {
-      "main.tex": "\\documentclass{article}\\input{body}\\end{document}",
-      "body.tex": "Hello from body!"
-    },
-    "main_file": "main.tex",
-    "compiler": "pdflatex"
-  }' \
-  -o output.pdf
-```
-
-**Python example:**
-
-```python
-import requests
-
-res = requests.post("http://localhost:8000/compile", json={
-    "code": r"\documentclass{article}\begin{document}Hello\end{document}",
-    "compiler": "pdflatex",
-})
-with open("output.pdf", "wb") as f:
-    f.write(res.content)
-```
-
-### `POST /compile/bundle`
-
-Compile a ZIP bundle containing LaTeX sources.
-
-**Request:** `multipart/form-data`
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `file` | file | — | ZIP archive containing LaTeX files |
-| `main_file` | string | `"main.tex"` | Entry point within the archive |
-| `compiler` | string | `"pdflatex"` | Compiler engine |
-
-**Response:** `application/pdf` binary stream.
-
-**Example (curl):**
-
-```bash
-zip bundle.zip main.tex
-curl -X POST http://localhost:8000/compile/bundle \
-  -F "file=@bundle.zip" \
-  -F "main_file=main.tex" \
-  -F "compiler=pdflatex" \
-  -o output.pdf
-```
-
-### `GET /compilers`
-
-List available compiler engines.
-
-**Response:**
-
-```json
-{
-  "compilers": ["pdflatex", "xelatex", "lualatex", "latex"]
-}
-```
-
-### `POST /detect-compiler`
-
-Auto-detect the best compiler for given LaTeX code.
-
-**Request (JSON):**
-
-```json
-{
-  "code": "\\documentclass{article}\\usepackage{fontspec}\\begin{document}Hello\\end{document}",
-  "preferred": "pdflatex"
-}
-```
-
-**Response:**
-
-```json
-{
-  "compiler": "lualatex"
-}
-```
-
-### `GET /health`
-
-Server health and version info.
-
-**Response:**
-
-```json
-{
-  "status": "healthy",
-  "version": "1.3.0",
-  "compilers": ["pdflatex", "xelatex", "lualatex"],
-  "latexmk": "/usr/bin/latexmk"
-}
-```
-
-### `GET /`
-
-Serves the web IDE.
-
-## Deploy
-
-```bash
-docker build -t texcompiler .
-docker run -p 8000:8000 texcompiler
-```
-
-## Environment Variables
-
-| Variable | Default | Description |
+| Method | Start command | Dependencies |
 |---|---|---|
-| `PORT` | `8000` | Server port |
-| `COMPILE_TIMEOUT` | `120` | Compilation timeout (seconds) |
-| `LOG_LEVEL` | `INFO` | Logging level |
-| `CORS_ORIGINS` | `*` | CORS allowed origins |
+| Direct Cargo, no shell launcher | `cargo build --locked --bins` then `cargo run --locked --bin texcompiler` | Rust and native tools below |
+| Release binaries, no shell launcher | `cargo build --locked --release --bins` then `./target/release/texcompiler` | Native tools below |
+| Convenience shell launcher | `./run.sh` or `./run-rust.sh` | Same native dependencies; builds both binaries |
+| Docker Compose | `docker compose up --build -d` | Docker Engine, Compose plugin and a compatible Linux host |
+
+The HTTP binary automatically finds the worker beside itself. Always build or
+install **both** binaries together. Native workers require Linux; Windows users
+should use a Linux/WSL2 environment. macOS/Windows native TeX workers are not
+implemented. Docker Desktop/WSL host namespace policies must be checked separately.
+
+## Install
+
+Clone the repository and work from its root:
+
+```sh
+git clone https://github.com/bbinxx/TexCompiler.git
+cd TexCompiler
+```
+
+For native builds install [Rust with rustup](https://rust-lang.org/install), then:
+
+```sh
+rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
+```
+
+Ubuntu 24.04 native tool and document dependencies:
+
+```sh
+sudo apt-get update
+sudo apt-get install --no-install-recommends \
+  ca-certificates curl build-essential pkg-config meson ninja-build libcap-dev \
+  xz-utils bubblewrap util-linux texlive-latex-extra texlive-xetex texlive-luatex \
+  texlive-fonts-recommended texlive-bibtex-extra texlive-science \
+  latexmk biber ghostscript poppler-utils ttf-bitstream-vera
+```
+
+Ubuntu's bundled Bubblewrap may be too old. **Version 0.13.1 is the validated
+profile**; follow [the installation guide](docs/INSTALLATION.md) for its
+checksum-verified build and host-policy prerequisites. Use Docker Compose if
+you prefer the image to supply those dependencies. Ubuntu's TeX packages may
+install Python for optional tools; TexCompiler itself uses no Python environment.
+
+Arch Linux native dependencies:
+
+```sh
+sudo pacman -S --needed base-devel rustup bubblewrap util-linux \
+  texlive-latexextra texlive-xetex texlive-luatex texlive-fontsrecommended \
+  texlive-bibtexextra texlive-science texlive-binextra biber ghostscript \
+  poppler ttf-bitstream-vera
+rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
+```
+
+For containers install [Docker Engine](https://docs.docker.com/engine/install/)
+and its [Compose plugin](https://docs.docker.com/compose/install/linux/).
+You do not need Rust or TeX installed on the host for Docker builds.
+
+## Run directly without shell launchers
+
+Linux prerequisites: the pinned Rust toolchain, Bubblewrap 0.13.1, util-linux
+`prlimit`, TeX Live with pdfLaTeX/XeLaTeX/LuaLaTeX, latexmk and BibTeX/Biber.
+
+```sh
+cargo build --locked --bins
+cargo run --locked --bin texcompiler
+```
+
+Open **http://127.0.0.1:8001** and click **Compile**. Stop with Ctrl+C.
+Loopback development needs no token. For optimized binaries:
+
+```sh
+cargo build --locked --release --bins
+./target/release/texcompiler
+```
+
+For a different local port:
+
+```sh
+TEXCOMPILER_BIND=127.0.0.1:9000 ./target/release/texcompiler
+```
+
+## Run with the shell launchers
+
+```sh
+./run.sh
+# Equivalent:
+./run-rust.sh
+```
+
+These are optional wrappers around the build-and-run commands above. The
+canonical helper is `scripts/dev/run-rust.sh`; both root launchers delegate to it.
+
+## Test an HTTP compilation
+
+```sh
+curl --fail-with-body http://127.0.0.1:8001/compile \
+  -H 'Content-Type: application/json' \
+  -d '{"code":"\\documentclass{article}\\begin{document}Hello Rust!\\end{document}","compiler":"pdflatex"}' \
+  -o document.pdf
+```
+
+## Run with Docker Compose
+
+On a Linux host supporting the [worker policy](deploy/README.md):
+
+```sh
+export TEXCOMPILER_API_TOKEN="$(openssl rand -hex 32)"
+docker compose up --build -d
+curl --fail http://127.0.0.1:8001/ready
+```
+
+Enter the token in the IDE's Settings, or send `Authorization: Bearer TOKEN`.
+The token stays in the browser tab's session. Keep it on your server or trusted
+gateway; do not embed a shared service token in a public frontend bundle.
+Non-loopback listeners require a 32–256 character printable ASCII token.
+
+Compose applies a non-root UID, read-only root, bounded temporary storage,
+CPU/memory/PID limits and a namespace-compatible seccomp policy. Worker network,
+filesystem and environment isolation remain enabled. Unsupported host policies
+fail closed; privileged containers and shell escape are not required.
+
+Use `TEXCOMPILER_TEX_PROFILE=full` for additional TeX fonts/languages. This image
+is larger; test your own templates. Python-dependent external helpers and
+shell-escape workflows are unsupported. Hosted platforms must support the
+documented namespace/container policy; the old Render blueprint was removed.
+
+Useful container commands:
+
+```sh
+docker compose logs -f
+docker compose ps
+docker compose down
+# Build the broader package profile:
+TEXCOMPILER_TEX_PROFILE=full docker compose build
+```
+
+For plain `docker build`/`docker run`, systemd installation, a platform PORT,
+reverse-proxy/TLS setup, upgrades and rollback, see
+[DEPLOYMENT.md](docs/DEPLOYMENT.md). Container security settings are required;
+plain `docker run IMAGE` does not configure the worker's host prerequisites.
+
+## Features and API
+
+- pdfLaTeX, XeLaTeX and LuaLaTeX; explicit compiler choice or conservative detection.
+- latexmk multipass and BibTeX/Biber workflows; three direct passes if absent.
+- JSON projects and ZIP bundles, custom classes/packages, fonts and image assets.
+- Existing editor, file explorer, local persistence, whole-project uploads,
+  diagnostics, shortcuts and PDF preview.
+- Private workspaces, disabled shell escape, bounded concurrency, timeouts and
+  cleanup when calls are cancelled.
+
+| Method | Route | Result |
+|---|---|---|
+| POST | /compile | Source or multi-file JSON -> binary PDF / JSON error |
+| POST | /compile/bundle | Multipart ZIP project -> binary PDF / JSON error |
+| POST | /detect-compiler | Compiler recommendation |
+| GET | /compilers | Available engines |
+| GET | /health | Liveness and compilation status |
+| GET | /ready | 200 when startup compilation succeeds; otherwise 503 |
+
+Versioned compile/project/engine/health/capability aliases are documented in
+[API.md](docs/API.md). See [client examples](docs/CLIENTS.md) for server-side
+JavaScript and Kotlin integration. Existing request models and binary responses
+remain compatible; unsafe compiler/path/shell-escape quirks are intentionally
+rejected. Remote clients must configure authentication.
+
+| Setting | Default | Purpose |
+|---|---|---|
+| TEXCOMPILER_BIND | 127.0.0.1:8001 | Explicit numeric listener; overrides PORT |
+| PORT | unset | Bind 0.0.0.0 to platform port; requires token |
+| TEXCOMPILER_API_TOKEN | unset | Optional locally, required remotely |
+| TEXCOMPILER_WORKER | Sibling binary | Trusted same-build helper path |
+| RUST_LOG | info | Log filter; tokens/source are not logged |
+
+## Verify
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --locked --all-features
+cargo build --locked --release
+# Full equipped Linux gate; requires all native prerequisites.
+cargo test --locked --all-features -- --include-ignored
+node --test tests/web/*.test.mjs
+# With a running service, Node 22+ and Chrome:
+node scripts/verification/browser.cjs
+```
+
+CI verifies native engines, bibliography/fonts, namespace/resource cleanup,
+the Python-free restricted container and rendered browser PDFs. Seven legacy
+HTTP comparisons match text, pages, font names and page renderings; see
+[migration evidence](docs/MIGRATION.md). Measurements are recorded without a
+speedup claim. User-owned templates and live external deployments need their
+own acceptance checks before a stable release.
+
+## Structure and status
+
+```text
+src/                   Rust HTTP service, library and isolated worker
+web/                   Browser IDE templates and assets
+tests/                 Rust integration tests and browser-module tests
+fixtures/              Trusted TeX compatibility inputs
+scripts/dev/           Development launcher
+scripts/verification/  Browser, container and migration verification
+deploy/                Container security policy and license notice
+docs/                  Current guides and migration evidence
+.github/workflows/     Checks required before integration/release
+```
+
+Optional WASM, persistent cache, asynchronous job APIs and further performance
+tuning are not implemented; capabilities describe only available functionality.
+`production_ready` remains false pending the stable-release security and
+real-client acceptance review. No public deployment or stable tag is created
+by this source migration. Python rollback source remains in Git history.
+
+Read [development](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md),
+[security](docs/SECURITY.md), [deployment](docs/DEPLOYMENT.md),
+[migration/rollback](docs/MIGRATION.md), [benchmarks](docs/BENCHMARKS.md),
+[structure](docs/STRUCTURE.md), [versioning](docs/VERSIONING.md) and
+[changelog](CHANGELOG.md).

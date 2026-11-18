@@ -1,0 +1,93 @@
+{
+  "python": "3.14.10",
+  "platform": "Linux-7.3.4-arch1-2-x86_64-with-glibc2.44",
+  "fixture": "fixtures/basic/main.tex",
+  "transport": "in-process TestClient",
+  "latexmk": false,
+  "records": [
+    {
+      "engine": "pdflatex",
+      "version": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026/Arch Linux)",
+      "attempt": 0,
+      "seconds": 0.0889091630015173,
+      "pdf_bytes": 14887
+    },
+    {
+      "engine": "pdflatex",
+      "version": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026/Arch Linux)",
+      "attempt": 1,
+      "seconds": 0.062012405000132276,
+      "pdf_bytes": 14887
+    },
+    {
+      "engine": "pdflatex",
+      "version": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026/Arch Linux)",
+      "attempt": 2,
+      "seconds": 0.06161504299961962,
+      "pdf_bytes": 14887
+    },
+    {
+      "engine": "pdflatex",
+      "version": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026/Arch Linux)",
+      "attempt": 3,
+      "seconds": 0.06541084199852776,
+      "pdf_bytes": 14887
+    },
+    {
+      "engine": "xelatex",
+      "version": "XeTeX 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux)",
+      "attempt": 0,
+      "seconds": 0.17775316199913505,
+      "pdf_bytes": 4155
+    },
+    {
+      "engine": "xelatex",
+      "version": "XeTeX 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux)",
+      "attempt": 1,
+      "seconds": 0.16330006099815364,
+      "pdf_bytes": 4155
+    },
+    {
+      "engine": "xelatex",
+      "version": "XeTeX 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux)",
+      "attempt": 2,
+      "seconds": 0.16711056799977086,
+      "pdf_bytes": 4155
+    },
+    {
+      "engine": "xelatex",
+      "version": "XeTeX 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux)",
+      "attempt": 3,
+      "seconds": 0.16211379900050815,
+      "pdf_bytes": 4155
+    },
+    {
+      "engine": "lualatex",
+      "version": "This is LuaHBTeX, Version 1.24.0 (TeX Live 2026/Arch Linux)",
+      "attempt": 0,
+      "seconds": 0.3134469380020164,
+      "pdf_bytes": 4506
+    },
+    {
+      "engine": "lualatex",
+      "version": "This is LuaHBTeX, Version 1.24.0 (TeX Live 2026/Arch Linux)",
+      "attempt": 1,
+      "seconds": 0.29053928600114887,
+      "pdf_bytes": 4506
+    },
+    {
+      "engine": "lualatex",
+      "version": "This is LuaHBTeX, Version 1.24.0 (TeX Live 2026/Arch Linux)",
+      "attempt": 2,
+      "seconds": 0.3001260290002392,
+      "pdf_bytes": 4506
+    },
+    {
+      "engine": "lualatex",
+      "version": "This is LuaHBTeX, Version 1.24.0 (TeX Live 2026/Arch Linux)",
+      "attempt": 3,
+      "seconds": 0.2938091430005443,
+      "pdf_bytes": 4506
+    }
+  ]
+}

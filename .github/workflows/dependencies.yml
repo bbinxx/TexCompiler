@@ -1,0 +1,29 @@
+name: Dependency review
+on:
+  workflow_call:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev]
+permissions:
+  contents: read
+jobs:
+  dependencies:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install 1.100.0 --profile minimal
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: cargo install cargo-audit --locked --version 0.23.0
+      - run: cargo audit --json > target-audit.json
+      - run: cargo metadata --locked --format-version 1 > dependency-metadata.json
+      - run: node scripts/verification/dependencies.cjs dependency-metadata.json > dependency-licenses.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dependency-review
+          path: |
+            target-audit.json
+            dependency-licenses.json

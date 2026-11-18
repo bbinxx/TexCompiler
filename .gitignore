@@ -36,7 +36,7 @@ dist/
 *.ist
 
 # workspace (local file system access — not server storage)
-workspace/
+/workspace/
 
 # FastAPI / IDE
 .vscode/
@@ -47,3 +47,6 @@ workspace/
 # OS
 .DS_Store
 Thumbs.db
+
+# Rust
+/target/

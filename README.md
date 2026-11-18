@@ -198,3 +198,12 @@ docker run -p 8000:8000 texcompiler
 | `COMPILE_TIMEOUT` | `120` | Compilation timeout (seconds) |
 | `LOG_LEVEL` | `INFO` | Logging level |
 | `CORS_ORIGINS` | `*` | CORS allowed origins |
+
+## Rust migration status
+
+The production service is still Python v1.3.0. Rust migration is in the audit
+and baseline stage; no Rust or WASM backend is available yet. See
+[the migration gates](docs/MIGRATION.md), [development workflow](docs/DEVELOPMENT.md),
+[API baseline](docs/API.md), and [security audit](docs/SECURITY.md).
+The current compiler enables shell escape and lacks process isolation; use
+trusted documents only until the security gates are implemented.

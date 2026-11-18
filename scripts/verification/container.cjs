@@ -18,7 +18,7 @@ const source = name => readFileSync(`fixtures/${name}`,'utf8');
   assert.deepEqual(inspect.HostConfig.CapDrop,['ALL']);
   assert.equal(inspect.HostConfig.NanoCpus,2_000_000_000);
   assert(inspect.HostConfig.SecurityOpt.some(value=>value.startsWith('no-new-privileges')));
-  assert(inspect.HostConfig.SecurityOpt.includes('systempaths=unconfined'));
+  assert.equal(inspect.HostConfig.ReadonlyPaths?.length ?? 0, 0);
   assert(inspect.HostConfig.Tmpfs['/tmp'].includes('size='));
   execFileSync('docker',['exec',cid,'/bin/sh','-ec','! command -v python; ! command -v python3; ! command -v pip; test ! -d /usr/lib/python3; test ! -d /usr/lib/python3.12; ! touch /app/should-be-read-only']);
   for(let i=0;i<180;i++) {

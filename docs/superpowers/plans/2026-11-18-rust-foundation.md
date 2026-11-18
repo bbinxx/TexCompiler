@@ -29,7 +29,7 @@
 ### Task 1: Parallel Rust foundation (next PR)
 
 Files: Cargo.toml, Cargo.lock, rust-toolchain.toml, src/lib.rs, src/main.rs,
-src/api/mod.rs, src/config.rs, tests/api_foundation.rs,
+src/api/mod.rs, src/config/mod.rs, tests/api_foundation.rs,
 .github/workflows/rust.yml, docs/DEVELOPMENT.md.
 Interfaces: `pub fn router() -> axum::Router`; versioned health returns
 `{status:"starting",compilation_ready:false}` until an isolated worker exists.

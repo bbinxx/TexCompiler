@@ -104,9 +104,9 @@ Python remains only until full replacement/compatibility and rollback gates pass
 
 ## Python removal commitment
 
-After full migration, remove app/, main.py, Python runtime and test dependency
-manifests, Python-only launchers and Python CI, tests/test_legacy.py and
-scripts/benchmark_python.py after their useful coverage has been ported. Replace the Docker/Procfile/
+After full migration, remove legacy/python/app/, legacy/python/main.py, Python runtime and test dependency
+manifests, Python-only launchers and Python CI, legacy/python/tests/test_legacy.py and
+legacy/python/scripts/benchmark_python.py after their useful coverage has been ported. Replace the Docker/Procfile/
 Render startup configurations with the validated Rust service and retain no
 Python runtime dependency in the final image. Convert useful regression fixtures
 and contracts to Rust before retiring the reference suite. Confirm client/API,

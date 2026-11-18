@@ -12,7 +12,7 @@ from app.routes import router
 
 logger = logging.getLogger(__name__)
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = Path(__file__).resolve().parents[3]
 
 
 def create_app() -> FastAPI:
@@ -30,11 +30,11 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    static_dir = ROOT_DIR / "static"
+    static_dir = ROOT_DIR / "web" / "static"
     if static_dir.is_dir():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-    app.state.templates = Jinja2Templates(directory=str(ROOT_DIR / "templates"))
+    app.state.templates = Jinja2Templates(directory=str(ROOT_DIR / "web" / "templates"))
 
     app.include_router(router)
 

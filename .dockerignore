@@ -1,0 +1,14 @@
+.git
+.agents
+.codex
+.aws
+.venv
+**/.venv
+**/__pycache__
+**/.pytest_cache
+target
+/workspace
+*.log
+.env
+.env.*
+**/.env

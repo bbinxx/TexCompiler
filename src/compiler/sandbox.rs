@@ -28,6 +28,7 @@ pub(crate) fn command(project: &Path, worker: &Path) -> Command {
         }
     }
     for path in [
+        "/etc/alternatives",
         "/etc/fonts",
         "/etc/texmf",
         "/var/lib/texmf",

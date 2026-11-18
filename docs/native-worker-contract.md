@@ -29,7 +29,8 @@ startup compile probe; production_ready remains false.
 - New user/mount/PID/network/IPC/UTS namespaces, no capabilities, new session,
   parent-death termination, and no nested user namespaces. Do not mount /proc.
 - Mount /usr read-only, preserving host /bin,/lib,/lib64 symlink or read-only
-  library directory layouts. Expose approved /etc/fonts, /etc/texmf and
+  library directory layouts. Expose approved /etc/alternatives (Debian TeX tool
+  symlink targets), /etc/fonts, /etc/texmf and
   /var/lib/texmf and libpaper /etc/paperspecs,/etc/papersize read-only when present; no home, credentials or host /tmp.
 - Bind only the private input workspace read-only at /project and the trusted
   worker executable read-only at /worker. Mount /output (64 MiB) and /tmp

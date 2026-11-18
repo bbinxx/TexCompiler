@@ -30,6 +30,3 @@ services:
       - "127.0.0.1:${TEXCOMPILER_PORT:-8001}:8000"
     stop_grace_period: 150s
     restart: unless-stopped
-networks:
-  default:
-    internal: true

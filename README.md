@@ -5,20 +5,21 @@ A high-performance LaTeX to PDF compilation service with a browser-based IDE, lo
 ## TexCompiler v2 — major migration in development
 
 **This repository has begun the major v2 migration from Python/FastAPI to
-Rust/Axum. Stable v2 is not released.** The Rust foundation is versioned
-`2.0.0-dev.1`; Python still serves LaTeX compilation and the browser IDE.
+Rust/Axum. Stable v2 is not released.** The experimental Rust worker is versioned
+`2.0.0-dev.2`; Python still serves LaTeX compilation and the browser IDE.
 
 | Component | Current status |
 |---|---|
 | Python compilation service | Existing runtime; reports `1.3.0` |
-| Rust `2.0.0-dev.1` | Development foundation: health and capabilities only |
+| Rust `2.0.0-dev.2` | Experimental native worker; public API still health/capabilities only |
 | Stable `2.0.0` | Planned; requires compatibility, security, deployment and rollback gates |
 
 The first milestones are merged: [audit and compatibility baseline (PR #1)](https://github.com/bbinxx/TexCompiler/pull/1)
 and [parallel Rust API foundation (PR #2)](https://github.com/bbinxx/TexCompiler/pull/2).
 The implementation/runtime and deployment transition warrants a major version;
-legacy API compatibility remains a requirement. Native Rust compilation,
-isolated workers and optional WASM are still pending.
+legacy API compatibility remains a requirement. Rust now has an experimental native worker for trusted fixtures on Linux.
+Public compilation endpoints, production worker quotas, broader compatibility
+and optional WASM remain pending.
 
 See the [changelog](CHANGELOG.md), [versioning policy](docs/VERSIONING.md), and
 [migration gates](docs/MIGRATION.md). The setup, API and deployment instructions
@@ -224,7 +225,9 @@ docker run -p 8000:8000 texcompiler
 ## Rust migration status
 
 The production service is still Python v1.3.0. A parallel Rust API foundation provides versioned health and capability
-endpoints only; native Rust compilation and WASM are not available yet. See
+endpoints only. The separate experimental native worker is tested through the
+Rust library/integration suite; it does not yet serve HTTP compilation. WASM
+is unavailable. See
 [the migration gates](docs/MIGRATION.md), [development workflow](docs/DEVELOPMENT.md),
 [API baseline](docs/API.md), and [security audit](docs/SECURITY.md).
 The current compiler enables shell escape and lacks process isolation; use

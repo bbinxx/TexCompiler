@@ -1,25 +1,25 @@
 :root {
-    --bg-primary: #0d1117;
-    --bg-secondary: #161b22;
-    --bg-tertiary: #21262d;
-    --bg-editor: #1c2128;
-    --border-primary: #30363d;
-    --border-secondary: #21262d;
-    --text-primary: #e6edf3;
-    --text-secondary: #8b949e;
-    --text-tertiary: #6e7681;
-    --accent-blue: #58a6ff;
+    --bg-primary: #101113;
+    --bg-secondary: #151618;
+    --bg-tertiary: #1c1d20;
+    --bg-editor: #141517;
+    --border-primary: #37393d;
+    --border-secondary: #1c1d20;
+    --text-primary: #f3f3f4;
+    --text-secondary: #b0b0b4;
+    --text-tertiary: #9a9b9f;
+    --accent-blue: #8cc8f2;
     --accent-green: #3fb950;
     --accent-red: #f85149;
     --accent-yellow: #d29922;
     --accent-purple: #bc8cff;
-    --btn-primary-bg: #1f6feb;
-    --btn-primary-hover: #388bfd;
-    --btn-primary-active: #1a5cc9;
-    --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    --radius-sm: 4px;
-    --radius-md: 6px;
-    --radius-lg: 8px;
+    --btn-primary-bg: #f0f0f1;
+    --btn-primary-hover: #d6e9f7;
+    --btn-primary-active: #bbd8eb;
+    --shadow: none;
+    --radius-sm: 0px;
+    --radius-md: 0px;
+    --radius-lg: 0px;
     --transition: 0.15s ease;
     --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-mono: 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;
@@ -162,7 +162,7 @@ header {
     align-items: center;
     gap: 6px;
     background: var(--btn-primary-bg);
-    color: #fff;
+    color: #151618;
     border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 0 16px;
     height: 34px;
@@ -249,8 +249,8 @@ header {
 main {
     flex: 1;
     display: flex;
-    gap: 12px;
-    padding: 12px;
+    gap: 0;
+    padding: 0;
     overflow: hidden;
     position: relative;
     min-width: 0;
@@ -766,7 +766,7 @@ main {
 
 .settings-btn {
     background: var(--btn-primary-bg);
-    color: #fff;
+    color: #151618;
     border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 8px 18px;
     border-radius: var(--radius-md);
@@ -824,4 +824,36 @@ main {
 
 ::selection {
     background: rgba(88, 166, 255, 0.3);
+}
+
+/* Shared workbench chrome */
+body { height: 100dvh; color-scheme: dark; }
+header { border-top: 2px solid var(--text-primary); }
+.logo { font-size: 1.2rem; font-weight: 750; }
+.version-badge { border-radius: 0; }
+.header-btn { border: 1px solid var(--border-primary); }
+.pane { border: 0; }
+.pane + .pane { border-left: 1px solid var(--border-primary); }
+.pane-header, .terminal-header, .explorer-header {
+    background: var(--bg-secondary);
+    font-family: var(--font-mono);
+}
+.pane-header .pane-badge { color: var(--accent-blue); }
+#compile-btn { font-weight: 650; }
+:where(button, input, select, a):focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+}
+.compiler-select:focus-within { outline: 2px solid var(--accent-blue); }
+#editor.ace_editor { background: var(--bg-editor); }
+#editor .ace_gutter { background: var(--bg-secondary); border-right: 1px solid var(--border-primary); }
+#editor .ace_active-line, #editor .ace_gutter-active-line { background: #222428; }
+
+@media (max-width: 900px) {
+    main { padding: 0; }
+    .pane + .pane { border-left: 0; }
+    .header-right { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; }
 }

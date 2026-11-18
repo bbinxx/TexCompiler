@@ -1,14 +1,14 @@
 const {spawn}=require('node:child_process');
 const {mkdtempSync,writeFileSync}=require('node:fs');
 const base=process.env.TEXCOMPILER_URL || 'http://127.0.0.1:8001';
-const browser=spawn(process.env.CHROME_BIN || '/opt/google/chrome/chrome',['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--remote-debugging-port=0','--user-data-dir='+mkdtempSync('/tmp/texcompiler-chrome-'),'about:blank'],{stdio:['ignore','ignore','pipe']});
+const browser=spawn(process.env.CHROME_BIN || 'google-chrome',['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--remote-debugging-port=0','--user-data-dir='+mkdtempSync('/tmp/texcompiler-chrome-'),'about:blank'],{stdio:['ignore','ignore','pipe']});
 let stderr='';
 browser.stderr.on('data',d=>stderr+=d);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 (async()=>{
  try {
-  for(let i=0;i<100&&!/DevTools listening on (ws:\/\/[^\s]+)/.test(stderr);i++){if(browser.exitCode!==null)throw new Error(stderr.slice(-2000));await sleep(100);}
-  const wsurl=stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/)?.[1];if(!wsurl)throw new Error('Chrome did not start');
+  for(let i=0;i<450&&!/DevTools listening on (ws:\/\/[^\s]+)/.test(stderr);i++){if(browser.exitCode!==null)throw new Error(stderr.slice(-2000));await sleep(100);}
+  const wsurl=stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/)?.[1];if(!wsurl)throw new Error('Chrome did not start: '+stderr.slice(-2000));
   const endpoint=wsurl.replace(/^ws:/,'http:').replace(/\/devtools\/.*$/,'');
   const target=await (await fetch(endpoint+'/json/new?'+encodeURIComponent(base),{method:'PUT'})).json();
   const ws=new WebSocket(target.webSocketDebuggerUrl);await new Promise((res,rej)=>{ws.onopen=res;ws.onerror=rej});

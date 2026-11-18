@@ -16,7 +16,7 @@ RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapsho
     && apt-get install -y --no-install-recommends ca-certificates curl util-linux \
        texlive-latex-extra texlive-xetex texlive-luatex texlive-fonts-recommended \
        texlive-bibtex-extra texlive-science latexmk biber ghostscript poppler-utils \
-       fonts-dejavu-core fonts-bitstream-vera fonts-liberation fonts-font-awesome \
+       fonts-dejavu-core ttf-bitstream-vera fonts-liberation fonts-font-awesome \
        meson ninja-build gcc pkg-config libcap-dev xz-utils \
     && if [ "$TEX_PROFILE" = full ]; then apt-get install -y --no-install-recommends texlive-fonts-extra texlive-lang-all; \
        elif [ "$TEX_PROFILE" != compatible ]; then echo 'TEX_PROFILE must be compatible or full' >&2; exit 1; fi \

@@ -9,10 +9,12 @@ RUN cargo build --locked --release --bins
 FROM ubuntu:24.04@sha256:73b999393d07f2bf65a40373778a44dc9a6d54ad7718d29247d8ff9413c4d6a8 AS tex-build
 COPY --from=rust-build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 ARG TEX_PROFILE=compatible
-ARG UBUNTU_SNAPSHOT=20261118T000000Z
+ARG UBUNTU_SNAPSHOT=
 ENV DEBIAN_FRONTEND=noninteractive
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/@g" /etc/apt/sources.list.d/ubuntu.sources \
+RUN if [ -n "$UBUNTU_SNAPSHOT" ]; then \
+      sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapshot.ubuntu.com/ubuntu/${UBUNTU_SNAPSHOT}/@g" /etc/apt/sources.list.d/ubuntu.sources; \
+    else sed -i 's@http://@https://@g' /etc/apt/sources.list.d/ubuntu.sources; fi \
     && apt-get -o APT::Update::Error-Mode=any -o Acquire::Retries=5 -o Acquire::https::Timeout=30 update \
     && apt-get -o Acquire::Retries=5 -o Acquire::https::Timeout=30 install -y --no-install-recommends ca-certificates curl util-linux \
        texlive-latex-extra texlive-xetex texlive-luatex texlive-fonts-recommended \
@@ -30,7 +32,7 @@ RUN sed -i -E "s@https?://(archive|security).ubuntu.com/ubuntu/?@https://snapsho
     && mkdir -p /runtime-root/app /runtime-root/tmp \
     && chmod 1777 /runtime-root/tmp \
     && dpkg-query -W > /runtime-root/app/package-manifest.txt \
-    && printf '%s\n' "$UBUNTU_SNAPSHOT" > /runtime-root/app/package-snapshot.txt \
+    && printf '%s\n' "${UBUNTU_SNAPSHOT:-canonical Ubuntu 24.04; exact versions in package-manifest.txt}" > /runtime-root/app/package-snapshot.txt \
     && tar --exclude='./usr/bin/python*' --exclude='./usr/bin/pip*' \
        --exclude='./usr/lib/python*' --exclude='./usr/local/lib/python*' \
        --exclude='./usr/share/python*' \

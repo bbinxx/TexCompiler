@@ -26,8 +26,12 @@ namespace setup: /ready reports 503 and compilation remains unavailable.
 Platforms that cannot configure nested user namespaces are unsupported for this
 worker profile; use a compatible Linux host instead of disabling isolation.
 
-Dockerfile.rust assembles a runtime from a pinned Ubuntu image and dated package
-snapshot, and records the build package manifest/snapshot in /app. Python is a
+Dockerfile.rust assembles a runtime from a pinned Ubuntu image and canonical
+HTTPS package repositories, recording exact resolved package versions in /app.
+Set build argument UBUNTU_SNAPSHOT to a timestamp for dated archive builds when
+the snapshot service is available. Fresh default builds can receive distribution
+security updates; deploy immutable image digests to retain an exact environment.
+Python is a
 build-time dependency of Ubuntu's TeX bundle and Meson. Interpreters and Python
 libraries are excluded from the final runtime rootfs; the final stage inherits
 no Python installation layers. Python-dependent TeX utilities (including Python

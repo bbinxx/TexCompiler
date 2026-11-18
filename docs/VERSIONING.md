@@ -54,4 +54,5 @@ Cargo's major version changes.
 Keep an Unreleased changelog entry between releases. Describe major work
 prominently in README even while unreleased; separate implemented behavior,
 remaining work and known risks. Keep benchmark claims tied to measurements.
-No version, release tag, or deployment is changed by this documentation update.
+Development milestone bumps must update Cargo metadata and the changelog together.
+This policy does not publish tags or deployments.

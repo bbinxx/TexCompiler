@@ -111,3 +111,10 @@ inside the sandbox. No untrusted host TeX execution is allowed. Tests probe host
 marker/env/network invisibility, read-only mounts, aggregate output tmpfs size,
 and externally observed descendant/workspace/slot cleanup after timeout/cancel.
 See native-worker-contract.md and SECURITY.md for production limitations.
+
+The native CI fixture profile uses Ubuntu's canonical HTTPS mirrors and disables
+optional apt recommendations after the first regional-mirror download exceeded
+the job deadline before any tests ran. It explicitly installs all three engines,
+latexmk, recommended TeX fonts and PDF tools. Biber/full compatibility corpus
+coverage remains a future gate; this CI package profile does not define or shrink
+the production runtime's maximum-compatibility installation.

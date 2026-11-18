@@ -153,3 +153,11 @@ CI runner before TeX execution. CI now builds the locally validated 0.13.1
 release, checks its published SHA-256, and retains all namespace/isolation tests.
 Use Bubblewrap 0.13.1 for the currently validated worker profile; older tools
 that fail setup are rejected without host execution.
+
+The current Bubblewrap release reproduced the Ubuntu CI namespace failure,
+identifying the runner's AppArmor unprivileged-userns restriction as the next
+precondition. On the disposable CI VM only, the workflow enables user namespaces
+as Bubblewrap's upstream CI does (commit f97804f5171f9416daa37a83e07ea5c264ffc383).
+The worker's network/mount isolation and all tests remain unchanged. No service
+code or launcher changes host kernel settings. Production Ubuntu hosts require
+an administrator-approved sandbox/user-namespace policy.

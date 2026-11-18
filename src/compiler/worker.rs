@@ -119,11 +119,7 @@ fn compile(request: &Request) -> Result<Response, Box<dyn std::error::Error>> {
         });
     }
     let log = diagnostics();
-    let warnings = log
-        .lines()
-        .filter(|line| line.contains("Warning:"))
-        .map(str::to_string)
-        .collect();
+    let warnings = final_warnings(Path::new("/output"));
     // Drop parsed objects before allocating the base64 transport envelope.
     drop(document);
     Ok(Response::Success {
@@ -140,4 +136,46 @@ fn compile(request: &Request) -> Result<Response, Box<dyn std::error::Error>> {
         log,
         warnings,
     })
+}
+
+fn final_warnings(output: &Path) -> Vec<String> {
+    let (bytes, truncated) =
+        read_bounded(&output.join("document.log"), protocol::MAX_DIAGNOSTICS - 64)
+            .unwrap_or_default();
+    let mut text = String::from_utf8_lossy(&bytes).into_owned();
+    text.truncate(text.floor_char_boundary(protocol::MAX_DIAGNOSTICS - 64));
+    let mut warnings: Vec<String> = text
+        .lines()
+        .filter(|line| line.contains("Warning:"))
+        .map(str::to_owned)
+        .collect();
+    if truncated {
+        warnings.push("Warning: compiler diagnostics truncated".into());
+    }
+    warnings
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn final_warnings_exclude_transient_latexmk_pass_warnings() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("document.log"), "Final clean TeX run\n").unwrap();
+        std::fs::write(
+            dir.path().join("process.log"),
+            "LaTeX Warning: Reference undefined on first pass\n",
+        )
+        .unwrap();
+        assert!(final_warnings(dir.path()).is_empty());
+        std::fs::write(
+            dir.path().join("document.log"),
+            "LaTeX Warning: Genuine final warning\n",
+        )
+        .unwrap();
+        assert_eq!(
+            final_warnings(dir.path()),
+            vec!["LaTeX Warning: Genuine final warning"]
+        );
+    }
 }

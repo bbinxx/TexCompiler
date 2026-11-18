@@ -6,7 +6,7 @@ use axum::{
 
 pub(super) async fn index() -> Html<String> {
     Html(
-        include_str!("../../templates/index.html")
+        include_str!("../../web/templates/index.html")
             .replace("{{ version }}", env!("CARGO_PKG_VERSION")),
     )
 }
@@ -14,35 +14,38 @@ pub(super) async fn asset(Path(name): Path<String>) -> Response {
     let files: &[(&str, &[u8])] = &[
         (
             "css/style.css",
-            include_bytes!("../../static/css/style.css"),
+            include_bytes!("../../web/static/css/style.css"),
         ),
         (
             "js/compiler.js",
-            include_bytes!("../../static/js/compiler.js"),
+            include_bytes!("../../web/static/js/compiler.js"),
         ),
         (
             "js/defaults.js",
-            include_bytes!("../../static/js/defaults.js"),
+            include_bytes!("../../web/static/js/defaults.js"),
         ),
         (
             "js/detector.js",
-            include_bytes!("../../static/js/detector.js"),
+            include_bytes!("../../web/static/js/detector.js"),
         ),
-        ("js/editor.js", include_bytes!("../../static/js/editor.js")),
+        (
+            "js/editor.js",
+            include_bytes!("../../web/static/js/editor.js"),
+        ),
         (
             "js/explorer.js",
-            include_bytes!("../../static/js/explorer.js"),
+            include_bytes!("../../web/static/js/explorer.js"),
         ),
-        ("js/main.js", include_bytes!("../../static/js/main.js")),
+        ("js/main.js", include_bytes!("../../web/static/js/main.js")),
         (
             "js/settings.js",
-            include_bytes!("../../static/js/settings.js"),
+            include_bytes!("../../web/static/js/settings.js"),
         ),
         (
             "js/terminal.js",
-            include_bytes!("../../static/js/terminal.js"),
+            include_bytes!("../../web/static/js/terminal.js"),
         ),
-        ("js/ui.js", include_bytes!("../../static/js/ui.js")),
+        ("js/ui.js", include_bytes!("../../web/static/js/ui.js")),
     ];
     match files.iter().find(|(path, _)| *path == name) {
         Some((_, bytes)) => (

@@ -29,7 +29,7 @@
 
 ### Task 1: Typed project and engine inputs
 
-Files: src/compiler/mod.rs, engine.rs, src/workspace.rs, tests/worker_inputs.rs.
+Files: src/compiler/mod.rs, engine.rs, src/workspace/mod.rs, tests/worker_inputs.rs.
 Interfaces: Engine enum (PdfLatex/XeLatex/LuaLatex); Project::new(files,
 main_file) -> Result<Project, InputError>; NativeCompiler::new(worker_executable).
 

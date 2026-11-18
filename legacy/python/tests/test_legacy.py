@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from app import create_app
 from app.compiler import detect_compiler, run_compilation
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 
 class LegacyContracts(unittest.TestCase):
     def setUp(self):

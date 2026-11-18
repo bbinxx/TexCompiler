@@ -6,6 +6,12 @@ Entries describe implemented changes. Planned work lives in
 
 ## [Unreleased] — 2.0.0-dev.3 working Rust service
 
+- Organized shared IDE files under web/, runtime configuration/workspaces into
+  Rust domain modules, verification/dev scripts by purpose, and the temporary
+  Python reference entirely under legacy/python/. Root launcher commands and
+  HTTP URLs are preserved; Docker/Procfile/reference CI paths are updated.
+- Added repository ownership/layout guidance and Docker build-context exclusions.
+
 - Rust now serves the existing browser IDE and native compile/detection/engine/
   health endpoints, with versioned compile/project aliases and binary PDFs.
 - Added bounded JSON/base64 project and multipart ZIP handling, startup worker

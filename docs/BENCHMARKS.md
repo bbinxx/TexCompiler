@@ -1,7 +1,7 @@
 # Baseline measurements
 
 Raw local samples: `python-baseline.json`, collected 2026-11-18 with
-`scripts/benchmark_python.py`. Four sequential basic-document requests per
+`legacy/python/scripts/benchmark_python.py`. Four sequential basic-document requests per
 engine, unique workspace each time, in-process TestClient (includes route,
 workspace, TeX execution and PDF read; excludes network and browser). First
 request is first observed, not a controlled cold-cache measurement. Subsequent

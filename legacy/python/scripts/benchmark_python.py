@@ -9,7 +9,7 @@ import time
 from fastapi.testclient import TestClient
 from app import create_app
 
-root = Path(__file__).resolve().parents[1]
+root = Path(__file__).resolve().parents[3]
 client = TestClient(create_app())
 records = []
 for engine in ('pdflatex', 'xelatex', 'lualatex'):

@@ -4,14 +4,14 @@ Production remains Python/FastAPI, version 1.3.0. The parallel Rust foundation i
 
 ## Setup and verification
 
-Use Python 3.11+ in a virtual environment. Install `requirements-dev.txt`.
+Use Python 3.11+ in a virtual environment. Install `legacy/python/requirements-dev.txt`.
 Runtime dependencies remain unchanged; HTTPX is only a test dependency.
 
 ```sh
-python -m pip install -r requirements-dev.txt
-python -m unittest discover -s tests -v
-TEXCOMPILER_NATIVE_TESTS=1 python -m unittest discover -s tests -v
-PYTHONPATH=. python scripts/benchmark_python.py > docs/python-baseline.json
+python -m pip install -r legacy/python/requirements-dev.txt
+PYTHONPATH=legacy/python python -m unittest discover -s legacy/python/tests -v
+TEXCOMPILER_NATIVE_TESTS=1 PYTHONPATH=legacy/python python -m unittest discover -s legacy/python/tests -v
+PYTHONPATH=legacy/python python legacy/python/scripts/benchmark_python.py > docs/python-baseline.json
 ```
 
 Native tests execute only repository-owned trusted fixtures and require
@@ -133,7 +133,7 @@ To check the actual editor/compile/PDF-preview flow with a disposable Chrome
 profile (Node 22+, Chrome installed):
 
 ```sh
-TEXCOMPILER_URL=http://127.0.0.1:8001 node scripts/check-browser.cjs
+TEXCOMPILER_URL=http://127.0.0.1:8001 node scripts/verification/browser.cjs
 ```
 
 CHROME_BIN can override the Chrome executable path. Native tests cover HTTP
@@ -161,3 +161,12 @@ as Bubblewrap's upstream CI does (commit f97804f5171f9416daa37a83e07ea5c264ffc38
 The worker's network/mount isolation and all tests remain unchanged. No service
 code or launcher changes host kernel settings. Production Ubuntu hosts require
 an administrator-approved sandbox/user-namespace policy.
+
+## Current filesystem layout
+
+See STRUCTURE.md. Rust assets are embedded from web/; the temporary Python
+reference resolves the same web/ tree. Use ./run-rust.sh or scripts/dev/run-rust.sh
+for Rust, ./run.sh or legacy/python/run.sh for the Python reference. Python
+dependencies/tests/benchmark scripts live only under legacy/python/. Rust tests
+remain in Cargo's standard tests/ root. No API URL or native worker protocol
+changes in this layout refactor.

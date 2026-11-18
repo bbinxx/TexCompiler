@@ -1,76 +1,117 @@
-# Legacy API baseline
+# API
 
-Observed at commit 54c5d89; production is v1.3.0. The generated `/openapi.json`
-is saved as `legacy-openapi.json`. It reflects actual routes but incompletely
-describes binary/error responses. These observations supplement that snapshot.
+The Rust service preserves the existing client shape: JSON source/projects and
+multipart ZIP input, binary PDF on success, JSON diagnostics on failure. The
+current OpenAPI contract is served at /openapi.json and stored in openapi.json.
+legacy-openapi.json is historical baseline evidence, not the live contract.
 
-| Route | Input | Observed output |
+## Routes
+
+| Method | Legacy route | Versioned alias |
 |---|---|---|
-| POST /compile | JSON: optional code:string, files:map<string,string>, main_file=document.tex, compiler=pdflatex | 200 PDF + attachment filename; 400 error/log/warnings/details on engine failure |
-| POST /compile/bundle | Multipart file, main_file=main.tex, compiler=pdflatex | 200 PDF; 400 detail for non-ZIP; error for extraction/missing main; error/log/warnings on compile failure |
-| POST /detect-compiler | JSON code:string, preferred=pdflatex | 200 {compiler:string} |
-| GET /compilers | none | 200 {compilers:sorted string array} |
-| GET /health | none | status, version, compilers, latexmk path or Not found; can say healthy with no engines |
-| GET / | none | Rendered IDE; /static serves browser assets |
+| POST | /compile | /api/v1/compile and /api/v1/projects/compile |
+| POST | /compile/bundle | — |
+| POST | /detect-compiler | — |
+| GET | /compilers | /api/v1/engines |
+| GET | /health | /api/v1/health |
+| GET | /ready | — |
+| GET | — | /api/v1/capabilities |
 
-Missing compile source returns 400 `{error: "No code provided"}`. PDF missing
-after runner success returns 500. Framework validation uses 422 detail arrays.
-Unhandled exceptions return 500 error/detail, currently including exception text.
+The root serves the IDE; /static URLs serve embedded web assets. Remote
+listeners require a bearer token for compile/detect calls. Health, readiness,
+inventory, capabilities, IDE/assets and OpenAPI remain public. A token can also
+protect loopback use. Authentication is checked before project preparation.
 
-`files` wins over `code` when writing assets. Detection uses code if nonempty,
-otherwise concatenated file values. Binary extensions png/jpg/jpeg/pdf/cls/sty/zip
-are base64-decoded; other values are text. In particular cls/sty are unexpectedly
-treated as binary. ttf/otf are not binary extensions. Single-source requests
-always write document.tex regardless of main_file and apply font rewriting.
-ZIP requests use the supplied compiler directly without auto-detection.
+## Source and projects
 
-Detection can override explicit preferences for Lua/Xe packages; fontspec and
-font commands upgrade pdfTeX preferences to LuaLaTeX. Regexes can match comments
-and miss comma-separated package lists. These quirks need explicit migration
-policy; v2 must honor explicit engines and expose auto-selection separately.
+```json
+{
+  "compiler": "lualatex",
+  "backend": "native",
+  "main_file": "resume.tex",
+  "files": {
+    "resume.tex": "\\documentclass{article}\\begin{document}Hello\\end{document}",
+    "body.tex": "Additional source"
+  }
+}
+```
 
-The IDE posts only `{code,compiler}`, consumes raw PDF blobs, and reads
-error/log/warnings on failure. It does not upload the full local workspace.
-Vitae Forge and TexSpace were not checked externally; do not claim those clients
-are verified from these server tests alone.
+Alternatively submit {"code":"...","compiler":"pdflatex"}. A source-only
+request writes document.tex, preserving the legacy behavior. main_file applies
+to files projects, with default document.tex. A nonempty files map takes
+precedence over code. No LaTeX source is modified to compensate for packages or
+fonts. Project paths stay relative; ../, absolute/drive/backslash/control and
+shell-metacharacter paths, option-like components and collisions are rejected.
 
-## Working Rust service (2.0.0-dev.3)
+Text values are UTF-8. Binary extensions png/jpg/jpeg/gif/webp/pdf/zip/ttf/otf/
+woff/woff2 use standard base64. .cls/.sty accept ordinary TeX text or legacy
+base64 values. ZIP transport preserves all uploaded bytes without extension-
+based decoding. EPS/SVG assets may need installed converters and a supported
+document workflow; shell escape is disabled.
 
-Run `./run-rust.sh`; the default listener is 127.0.0.1:8001. It implements the
-five legacy endpoints above and embeds the original IDE/static assets. It uses
-native isolated workers, with no Python interpreter in the request path.
+compiler accepts pdflatex, xelatex or lualatex. Omit it or send an empty string
+for conservative detection. Explicit choices are never silently overridden.
+POST /detect-compiler accepts code and an optional preferred engine; it returns
+{"compiler":"..."}. backend accepts native or auto; unsupported backends are
+rejected rather than silently substituted. WASM is not implemented.
 
-- POST /compile and /api/v1/compile: legacy JSON input, binary PDF success.
-- POST /api/v1/projects/compile: the same JSON multi-file contract.
-- POST /compile/bundle: multipart ZIP, main_file=main.tex, optional compiler.
-- POST /detect-compiler: code and preferred compiler -> compiler recommendation.
-- GET /compilers and /api/v1/engines: installed allowlisted compilers.
-- GET /health and /api/v1/health: runtime version, engines, startup-probed
-  compilation_ready and production_ready=false.
-- GET /api/v1/capabilities: native backend when startup probe succeeds,
-  experimental=true and production_ready=false. No WASM capability is advertised.
+## ZIP input
 
-Explicit engine selections are never overridden. Missing/blank compile engine
-selections auto-detect Unicode/Lua/Xe package requirements; detection understands
-comma-separated packages and ignores comments. The browser's blank loading
-selection is accepted as auto. This intentionally corrects v1's silent overrides.
+```sh
+curl --fail-with-body http://127.0.0.1:8001/compile/bundle \
+  -H "Authorization: Bearer $TEXCOMPILER_API_TOKEN" \
+  -F file=@project.zip -F main_file=main.tex -F compiler=xelatex \
+  -o result.pdf
+```
 
-Binary assets (images/PDF/fonts/ZIP) are base64 strings in files. Plain TeX
-class/package strings and the legacy base64 class/package convention are both
-accepted. Source is not rewritten to substitute fonts or paths. ZIP input is
-bounded and rejects unsafe paths, links/special entries and duplicate filenames.
-The body limit is 32 MiB; decoded projects are limited to 20 MiB and 256 files.
+Use a .zip filename. main_file defaults to main.tex; omitted/blank compiler
+auto-detects. ZIP members are validated before any filesystem writes. Duplicate
+names, links, special files, traversal and oversized/decompression-bomb input
+are rejected. Archives are not extracted using an unbounded system utility.
 
-Errors remain JSON: empty input is 400 No code provided; validation/engine/TeX
-failures are 400; busy workers are 429; failed native setup is 503. Invalid JSON
-uses the extractor's 4xx status with a JSON error. PDF success includes
-Content-Disposition and X-TexCompiler-Engine, X-TexCompiler-Pages and
-X-TexCompiler-Method headers. Attachment filenames use a sanitized main basename.
+## Responses and limits
 
-The old `router()` library function retains the noncompiling foundation router
-for baseline tests; the executable uses `native_router()` and probes its worker.
-The browser still submits its active source; the multi-file API is available
-for clients but automatic upload of a local IDE workspace is not yet implemented.
-Jobs, generated new OpenAPI, authentication, full package/font compatibility
-and production deployment remain follow-ups. Do not expose this prototype to
-untrusted users before its production gates pass.
+Success is application/pdf with Content-Disposition attachment filename plus
+X-TexCompiler-Engine, X-TexCompiler-Pages and X-TexCompiler-Method. Nested project
+main files produce a basename attachment. TeX's jobname keeps that basename.
+The worker checks exit status and parses the generated PDF before returning it.
+
+Compilation errors return 400 with error/log/warnings and optional details.
+Validation errors return 400/422 JSON; authentication returns 401; oversized
+bodies return 413; exhausted request/preparation/worker slots return 429;
+unavailable native execution returns 503. A stalled whole request can return
+408. Diagnostics are bounded and expose sandbox paths rather than host secrets.
+
+| Limit | Value |
+|---|---|
+| HTTP request body | 32 MiB |
+| Project files / ZIP entries | 256 |
+| Decoded project / expanded archive | 20 MiB |
+| Path / component bytes | 2048 / 255 |
+| Concurrent admitted requests / preparations | 8 / 8 |
+| Concurrent native workers | 2 per shared compiler instance |
+| Compilation wall deadline | 120 seconds plus bounded cleanup |
+| Whole-request deadline | 150 seconds |
+| PDF / diagnostics | 16 MiB / 256 KiB |
+
+No job/cache data persists between unrelated projects. The worker retains its
+workspace and permit until process reaping even when the caller is cancelled.
+latexmk performs multipass/bibliography work when installed; without it the
+three-pass fallback does not guarantee bibliography automation.
+
+## Health and capability semantics
+
+/health is liveness and reports version, installed engines, latexmk and startup
+compilation readiness. /ready returns 200 only after a real startup compilation,
+otherwise 503. production_ready remains false pending stable-release acceptance.
+Capabilities advertise the native backend only when the startup probe succeeds.
+Asynchronous job APIs, persistent cache, SyncTeX output and WASM are not supported
+and must not be inferred from planned v2 route names.
+
+## Intentional legacy corrections
+
+Explicit compiler selection, exit-code checking, disabled shell escape, strict
+paths/ZIP limits and remote authentication replace unsafe/inconsistent v1 quirks.
+Automatic host font-path rewriting and arbitrary executable names are removed.
+These changes are documented rather than emulating vulnerabilities. See
+CLIENTS.md for unchanged request models and authentication-header examples.

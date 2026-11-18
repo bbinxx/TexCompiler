@@ -1,58 +1,24 @@
-# Versioning and release policy
+# Versioning and releases
 
-TexCompiler uses semantic versions with an explicit development stage for the
-Rust migration. A major migration milestone does not mean a stable major
-release has shipped.
+The Python-to-Rust rewrite is a major v2 migration. Cargo.toml is the runtime
+version source; Cargo.lock must match. The IDE and health response use that
+version. The native cutover is **2.0.0-rc.1**, not a stable 2.0.0 release.
 
-## Current version identities
+The README/changelog describe implemented functionality and remaining release
+acceptance. Do not mark optional WASM, cache, jobs, benchmarks or live client
+validation complete merely because the Rust source migration is complete.
 
-| Identity | Source | Meaning |
-|---|---|---|
-| Python runtime `1.3.0` | legacy/python/app/config.py APP_VERSION | Version currently exposed by Python health/IDE/OpenAPI |
-| Existing tag `v1.3.1` | Git release history | Latest existing v1 tag; preserve its history |
-| Rust `2.0.0-dev.3` | Cargo.toml and Cargo.lock | Unreleased working Rust service milestone |
-| Future `v2.0.0` | No tag yet | Stable release only after migration gates pass |
+Use conventional commits and focused branches/PRs into dev. Preserve main,
+historical releases and tags. Never commit ordinary changes directly to dev,
+force-push a shared branch or merge failing checks to finish a milestone.
 
-The v1 tag/runtime mismatch is recorded, not silently corrected. Reconcile
-runtime metadata with the intended release in a focused release PR before
-publishing another v1 version. Do not rename existing tags.
+A release requires Rust format/Clippy/tests/release build, the full native
+fixture/security suite, container/browser validation and current dependency
+review. The release workflow must gate publication on those checks. For a stable
+tag, also complete actual client/template and production acceptance, record
+image digests, benchmark limitations and rollback configuration. The migration
+does not itself publish a tag or alter the default/release branch strategy.
 
-## Choosing a version
-
-- Major: incompatible public contracts or substantial runtime/deployment
-  transitions. The Python-to-Rust production transition is assigned v2 while
-  preserving the legacy API wherever practical.
-- Minor: compatible user-facing additions within a stable major line.
-- Patch: compatible fixes within a stable major line.
-- Development milestones: `2.0.0-dev.N`, incrementing N for an explicitly
-  designated milestone, not every documentation commit or merged PR.
-- Alpha, beta and release candidates: `2.0.0-alpha.N`, `2.0.0-beta.N`, then
-  `2.0.0-rc.N` only when their documented scope has actually been verified.
-
-`/api/v1` identifies the versioned HTTP contract and is independent of the
-service's v2 implementation version. Do not rename API paths simply because
-Cargo's major version changes.
-
-## Release workflow
-
-1. Use a focused `chore/release-<version>` branch from validated dev. Update
-   Cargo.toml/Cargo.lock together for Rust, or APP_VERSION for a v1 release;
-   update README status and CHANGELOG with implemented behavior and limitations.
-2. Run relevant format, lint, test, compatibility and deployment checks. Review
-   and merge the PR into dev only after required checks pass. Never commit the
-   version bump directly on dev.
-3. Create a release tag only for the exact validated commit and explicitly
-   authorized publication. This policy does not authorize tagging or publishing.
-4. Mark every development/alpha/beta/rc GitHub release as a prerelease. The
-   existing tag-triggered workflow does not enforce this; update and verify its
-   prerelease classification and test gates in a focused workflow PR before
-   publishing any v2 prerelease. Do not trigger it with a development tag now.
-5. Publish stable `v2.0.0` only after the compatibility, isolation/security,
-   native-engine/font/project, real-client, deployment and rollback gates in
-   MIGRATION.md are verified. Remove the development suffix only then.
-
-Keep an Unreleased changelog entry between releases. Describe major work
-prominently in README even while unreleased; separate implemented behavior,
-remaining work and known risks. Keep benchmark claims tied to measurements.
-Development milestone bumps must update Cargo metadata and the changelog together.
-This policy does not publish tags or deployments.
+Prereleases use v2.0.0-rc.N tags only when deliberately released; stable uses
+v2.0.0 after acceptance. Future incompatible protocol or deployment behavior
+requires a documented major-version policy rather than silent changes.

@@ -1,5 +1,6 @@
 name: Rust checks
 on:
+  workflow_call:
   push:
     branches: [dev]
   pull_request:

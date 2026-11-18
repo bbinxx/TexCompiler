@@ -1,172 +1,92 @@
 # Development
 
-Production remains Python/FastAPI, version 1.3.0. The parallel Rust foundation is development-only; compilation remains Python.
+TexCompiler is a single Rust application crate with two executables: the HTTP
+service and its internal sandbox worker. No Python environment is needed.
 
-## Setup and verification
+## Setup
 
-Use Python 3.11+ in a virtual environment. Install `legacy/python/requirements-dev.txt`.
-Runtime dependencies remain unchanged; HTTPX is only a test dependency.
+Install Rust through rustup; rust-toolchain.toml pins Rust 1.100.0, rustfmt and
+Clippy. Cargo.lock locks dependencies. Linux native compilation additionally
+needs Bubblewrap 0.13.1, permitted unprivileged user namespaces, prlimit, the
+three TeX engines and their fonts. Install latexmk, BibTeX/Biber and Poppler
+tools for the complete compatibility suite. See deploy/README.md for the
+validated container policy. Non-Linux worker execution is unsupported.
 
-```sh
-python -m pip install -r legacy/python/requirements-dev.txt
-PYTHONPATH=legacy/python python -m unittest discover -s legacy/python/tests -v
-TEXCOMPILER_NATIVE_TESTS=1 PYTHONPATH=legacy/python python -m unittest discover -s legacy/python/tests -v
-PYTHONPATH=legacy/python python legacy/python/scripts/benchmark_python.py > docs/python-baseline.json
-```
-
-Native tests execute only repository-owned trusted fixtures and require
-pdflatex, xelatex, lualatex, pdfinfo, and pdftotext. They validate PDF framing,
-page count, extracted text, and both JSON and ZIP projects. The regular suite
-uses no TeX execution except attempting a deliberately nonexistent executable.
-The two mocked subprocess tests cover timeout translation and the v1 exit-code
-defect; they do not validate sandboxing or process-tree termination.
-
-The current host has TeX Live 2026/Arch Linux; latexmk and biber are absent.
-Install latexmk and biber in the full integration environment. Package and
-font snapshots are not pinned today. Do not run untrusted documents using v1.
+Run ./run.sh or ./run-rust.sh from the repository; both build the two binaries
+and start the service on loopback port 8001. cargo run alone does not guarantee
+the helper is built; use cargo build --bins first when launching manually.
+TEXCOMPILER_BIND overrides PORT. Setting PORT binds a remote listener and
+requires TEXCOMPILER_API_TOKEN. Never use a client-supplied worker path.
 
 ## Workflow
 
-Inspect status and diffs, fetch origin, fast-forward dev, create one focused
-branch, implement tests before behavior, verify, review, and open a PR to dev.
-Integrate only with green required checks, then fast-forward local dev and
-remove the task branch/worktree after verified integration. Keep main and tags.
-A clean audit worktree was created at `/tmp/texcompiler-phase0` on
-`docs/migration-architecture`; original checkout stays on dev.
+Inspect status/diffs, preserve user changes, fetch origin and fast-forward dev.
+Create a focused feature/, fix/, docs/ or chore/ branch from validated dev;
+worktrees are useful for isolation. No ordinary commits directly to dev.
+Write a failing regression before behavior changes, implement, verify, review,
+then open a PR targeting dev. Merge only with green required checks. Preserve
+main, tags and release history; no reset/clean/stash/force-push without authority.
 
-## Skills observed on 2026-11-18
-
-Installed and read: writing-plans, using-git-worktrees,
-test-driven-development (including writing-good-tests),
-verification-before-completion. The full using-superpowers/brainstorming,
-executing-plans/subagent-driven-development, finishing-a-development-branch,
-Rust, and dedicated security-review/code-review packages were not found in
-available catalogs/local skills. No unreviewed third-party skills were
-installed. Use the available Superpowers-derived practices and explicit manual
-security review. Review and install remaining guidance before Rust work.
-
-New FastAPI/Starlette on this host emits a TestClient HTTPX deprecation warning;
-the suite passes. Runtime requirements use minimum versions, not pins. A locked
-Python test environment remains a follow-up reproducibility task.
-
-## Rust foundation
-
-`rust-toolchain.toml` pins Rust 1.100.0 and Cargo.lock locks dependency resolution.
-Run `cargo run --locked` for a separate listener at 127.0.0.1:8001. Override with
-`TEXCOMPILER_BIND=127.0.0.1:9001`; numeric IPv4/IPv6 socket addresses are accepted,
-invalid/empty values fail startup. Python PORT does not configure this listener.
-RUST_LOG controls tracing (default info). Stop using the normal process signal.
-No compilation worker, IDE, legacy routes or authentication run in the HTTP binary.
-A separate experimental worker helper now exists; see below.
+## Checks
 
 ```sh
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --locked --all-features
 cargo build --locked --release
+node --test tests/web/*.test.mjs
 ```
 
-Foundation TDD evidence: empty router returned 404 for both requested endpoints;
-the config test failed to import the missing parser. After implementation six
-Rust integration tests pass. CI runs the same checks separately from Python.
-No compilation performance change is claimed. Dependency/license audit tooling,
-generated OpenAPI and production deployment validation remain future gates.
-
-Rust-specific guidance was subsequently located and read upstream at
-https://github.com/leonardomso/rust-skills/blob/master/SKILL.md (v1.5.1), without
-installing third-party files. Applied typed boundary parsing, propagated errors,
-no unsafe code, no user-input panics, and async route tests. Axum/Tower usage
-was checked against their primary docs at https://docs.rs/axum/0.8.9/axum/ and
-https://docs.rs/tower/0.5.3/tower/trait.ServiceExt.html.
-
-## Experimental native worker
-
-Current Rust milestone: `2.0.0-dev.2` (unreleased). Use the library's
-`NativeCompiler::new(trusted_worker_binary)` with `Project::new` byte assets and
-an explicit `Engine`; do not take executable paths from client requests. The
-helper binary is `texcompiler-worker`; `cargo run --locked` still starts the API.
-Run the helper only through the supervisor's private sandbox. It refuses normal
-unsandboxed startup and is not a standalone service or security boundary by itself.
-
-Linux prerequisites: Bubblewrap with --disable-userns and --size, permitted
-unprivileged user namespaces, /usr/bin/prlimit, TeX engines under /usr/bin and
-latexmk for automated bibliography/multipass workflows. No fallback bypasses
-failed isolation. Local testing uses Bubblewrap 0.13.1, util-linux 2.42.4 and
-TeX Live 2026/Arch Linux. System libpaper configuration must be visible read-only
-for XeTeX's PDF driver. The sandbox discovers only the explicitly listed system
-paths; TeX installed under /usr/local/texlive is not currently supported.
+Fast Rust tests intentionally ignore native environment gates. On an equipped
+Linux system run every test explicitly:
 
 ```sh
-# Fast tests; native/isolation tests are intentionally ignored here.
-cargo test --locked --all-features
-# Full native gate: requires latexmk, all three engines, Python 3 for a probe.
 cargo test --locked --all-features -- --include-ignored
-# Local direct fallback gate when latexmk is absent (not a full native gate).
-cargo test --locked --all-features -- --include-ignored --skip latexmk_all_engines_and_nested_main_are_verified
 ```
 
-Native CI installs the dependencies and runs the full no-skip gate separately
-from fast Rust/Python checks. Tests use trusted documents and controlled probes
-inside the sandbox. No untrusted host TeX execution is allowed. Tests probe host
-marker/env/network invisibility, read-only mounts, aggregate output tmpfs size,
-and externally observed descendant/workspace/slot cleanup after timeout/cancel.
-See native-worker-contract.md and SECURITY.md for production limitations.
+Do not call the full suite green if any native prerequisite is missing. Native
+CI installs the complete fixture profile, including latexmk/Biber, and includes
+all ignored tests. Host checks never run hostile TeX outside the sandbox.
+The container job additionally runs all engines/fonts/bibliography and the IDE
+under the exact Compose restrictions. It checks absence of Python interpreters.
 
-The native CI fixture profile uses Ubuntu's canonical HTTPS mirrors and disables
-optional apt recommendations after the first regional-mirror download exceeded
-the job deadline before any tests ran. It explicitly installs all three engines,
-latexmk, recommended TeX fonts and PDF tools. Biber/full compatibility corpus
-coverage remains a future gate; this CI package profile does not define or shrink
-the production runtime's maximum-compatibility installation.
-
-## Working Rust API and IDE
-
-Current milestone: `2.0.0-dev.3`. Start `./run-rust.sh` and open
-http://127.0.0.1:8001. The launcher builds both Rust executables, and the server
-probes a real native compilation before reporting compilation_ready. Override
-TEXCOMPILER_WORKER only with a trusted same-build helper path. The original
-Python run.sh and Docker configuration remain until full parity is verified.
-
-The service supports all legacy routes, JSON multi-file and ZIP inputs, and the
-embedded IDE. A separate foundation-only router remains for its baseline tests.
-To check the actual editor/compile/PDF-preview flow with a disposable Chrome
-profile (Node 22+, Chrome installed):
+With a running service, Node 22+ and Chrome:
 
 ```sh
 TEXCOMPILER_URL=http://127.0.0.1:8001 node scripts/verification/browser.cjs
 ```
 
-CHROME_BIN can override the Chrome executable path. Native tests cover HTTP
-source/JSON/ZIP PDFs and explicit-engine errors; use --include-ignored as above.
-The full local gate currently excludes only the latexmk-specific test when that
-tool is absent; CI must verify it on an equipped runner. Initial native CI runs
-failed during package downloads, not worker tests. The runner uses apt mirrorlist
-files as well as ubuntu.sources; both are now configured for canonical HTTPS.
+Set CHROME_BIN for a different Chrome path. Set TEXCOMPILER_API_TOKEN for an
+authenticated service. The smoke test uses an isolated browser profile and
+does not put tokens in the URL or print them. Frontend module tests use Node's
+built-in runner, with no npm dependency installation or UI framework migration.
 
-Following the user's priority, production_ready stays false while functional
-local compilation is available. Authentication, aggregate cgroup/PID quotas,
-full client/template/font validation and tuning remain future work. Once full
-migration passes, remove Python completely as listed in MIGRATION.md.
+## Layout and dependencies
 
-Ubuntu's packaged Bubblewrap 0.9 failed network namespace loopback setup on the
-CI runner before TeX execution. CI now builds the locally validated 0.13.1
-release, checks its published SHA-256, and retains all namespace/isolation tests.
-Use Bubblewrap 0.13.1 for the currently validated worker profile; older tools
-that fail setup are rejected without host execution.
+See STRUCTURE.md. Keep process execution, input validation and HTTP adaptation
+separate. web/ assets are embedded at build time, so rebuild after UI edits.
+TeX Live is the authoritative backend; do not rewrite TeX or patch user source
+to hide missing fonts/packages. Copy uploaded fonts/assets without rewriting.
 
-The current Bubblewrap release reproduced the Ubuntu CI namespace failure,
-identifying the runner's AppArmor unprivileged-userns restriction as the next
-precondition. On the disposable CI VM only, the workflow enables user namespaces
-as Bubblewrap's upstream CI does (commit f97804f5171f9416daa37a83e07ea5c264ffc383).
-The worker's network/mount isolation and all tests remain unchanged. No service
-code or launcher changes host kernel settings. Production Ubuntu hosts require
-an administrator-approved sandbox/user-namespace policy.
+Use the checked-in toolchain and lock file. Review dependency changes, licenses
+and RustSec advisories. CI installs pinned cargo-audit; do not ignore advisories
+without a documented review. Docker pins base digests, the package manifest and
+Bubblewrap checksum; rebuild/test explicitly when updating them. The build
+package manifest is retained in /app for environment diagnosis.
 
-## Current filesystem layout
+## Skills and review
 
-See STRUCTURE.md. Rust assets are embedded from web/; the temporary Python
-reference resolves the same web/ tree. Use ./run-rust.sh or scripts/dev/run-rust.sh
-for Rust, ./run.sh or legacy/python/run.sh for the Python reference. Python
-dependencies/tests/benchmark scripts live only under legacy/python/. Rust tests
-remain in Cargo's standard tests/ root. No API URL or native worker protocol
-changes in this layout refactor.
+Use installed planning, worktree, TDD, debugging and verification skills where
+applicable; request an independent review before integration. The initial
+environment lacked full Superpowers, Rust and dedicated security-review
+packages; that limitation is recorded in the historical plans. Equivalent
+typed/error-propagating Rust guidance and explicit manual security review were
+used. Do not install unreviewed third-party instructions automatically.
+
+## Rollback and current limits
+
+The legacy implementation is recoverable at commit 8f87470. The recorded local
+traffic rehearsal switched Rust → Python → Rust successfully; no live production
+traffic was changed. Follow MIGRATION.md before an actual rollout and retain
+immutable deployed image digests. Optional WASM/cache/job APIs remain follow-ups;
+the RC does not claim full CTAN, live-client or public hostile-document approval.

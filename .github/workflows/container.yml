@@ -1,5 +1,6 @@
 name: Rust container
 on:
+  workflow_call:
   pull_request:
     branches: [dev]
   push:

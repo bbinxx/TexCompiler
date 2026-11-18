@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.0-rc.1 — Rust cutover candidate
+
+- Use Rust for native compilation and deployment, and retire legacy Python application files.
+- Document direct Cargo execution, launchers, Docker Compose and native deployment.
+
 Entries describe implemented changes. Planned work lives in
 [the migration roadmap](docs/MIGRATION.md). Version and release rules are in
 [VERSIONING.md](docs/VERSIONING.md).

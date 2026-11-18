@@ -2,6 +2,28 @@
 
 A high-performance LaTeX to PDF compilation service with a browser-based IDE, local file system access, and auto font path resolution.
 
+## TexCompiler v2 — major migration in development
+
+**This repository has begun the major v2 migration from Python/FastAPI to
+Rust/Axum. Stable v2 is not released.** The Rust foundation is versioned
+`2.0.0-dev.1`; Python still serves LaTeX compilation and the browser IDE.
+
+| Component | Current status |
+|---|---|
+| Python compilation service | Existing runtime; reports `1.3.0` |
+| Rust `2.0.0-dev.1` | Development foundation: health and capabilities only |
+| Stable `2.0.0` | Planned; requires compatibility, security, deployment and rollback gates |
+
+The first milestones are merged: [audit and compatibility baseline (PR #1)](https://github.com/bbinxx/TexCompiler/pull/1)
+and [parallel Rust API foundation (PR #2)](https://github.com/bbinxx/TexCompiler/pull/2).
+The implementation/runtime and deployment transition warrants a major version;
+legacy API compatibility remains a requirement. Native Rust compilation,
+isolated workers and optional WASM are still pending.
+
+See the [changelog](CHANGELOG.md), [versioning policy](docs/VERSIONING.md), and
+[migration gates](docs/MIGRATION.md). The setup, API and deployment instructions
+below describe the existing Python service.
+
 ## Features
 
 - **Browser IDE** — Ace Editor with LaTeX syntax highlighting, PDF preview, and build console

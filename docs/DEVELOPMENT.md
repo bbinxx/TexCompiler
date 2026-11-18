@@ -147,3 +147,9 @@ Following the user's priority, production_ready stays false while functional
 local compilation is available. Authentication, aggregate cgroup/PID quotas,
 full client/template/font validation and tuning remain future work. Once full
 migration passes, remove Python completely as listed in MIGRATION.md.
+
+Ubuntu's packaged Bubblewrap 0.9 failed network namespace loopback setup on the
+CI runner before TeX execution. CI now builds the locally validated 0.13.1
+release, checks its published SHA-256, and retains all namespace/isolation tests.
+Use Bubblewrap 0.13.1 for the currently validated worker profile; older tools
+that fail setup are rejected without host execution.

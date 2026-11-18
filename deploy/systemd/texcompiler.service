@@ -1,0 +1,37 @@
+[Unit]
+Description=TexCompiler native Rust LaTeX service
+After=network.target
+
+[Service]
+Type=simple
+User=texcompiler
+Group=texcompiler
+WorkingDirectory=/usr/local/lib/texcompiler
+EnvironmentFile=/etc/texcompiler/texcompiler.env
+Environment=TMPDIR=/run/texcompiler
+ExecStart=/usr/local/lib/texcompiler/texcompiler
+RuntimeDirectory=texcompiler
+RuntimeDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+CapabilityBoundingSet=
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+# Do not mask /proc/sys: Bubblewrap writes its own new user namespace limit.
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/run/texcompiler
+# Bubblewrap requires unprivileged user/PID/mount/network namespaces.
+RestrictNamespaces=false
+MemoryMax=3G
+CPUQuota=200%
+TasksMax=128
+KillMode=control-group
+TimeoutStopSec=150
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

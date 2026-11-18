@@ -1,133 +1,71 @@
-# Migration status and gates
+# Rust migration status and rollback
 
-## Native cutover candidate
+## Native cutover — 2.0.0-rc.1
 
-The completion branch adds authenticated remote listeners, PORT support,
-readiness, bounded input preparation through cancellation, project uploads in
-the IDE, basename-preserving native jobs, and an isolated Rust container profile.
-Seven trusted Python/Rust HTTP fixtures match page counts, extracted text, font
-names and every page's 72 dpi rendering. Exact observations are recorded in
-[native-comparison.json](evidence/native-comparison.json); these are not speedup
-claims. Rust-only tests additionally cover uploaded OTF/TTF and missing resources.
+The application has migrated from FastAPI/Python to Rust/Axum/Tokio. Both HTTP
+handling and native compilation orchestration are Rust. The default Dockerfile,
+Compose profile, Procfile and launchers start Rust. Python application source,
+dependency manifests, reference tests/benchmark launcher and Python CI are
+removed. No Python interpreter is present in the assembled runtime image.
 
-Dockerfile.rust and compose.yaml are the cutover candidates. CI must prove the
-final runtime has no Python interpreter, enforces its configured resource and
-filesystem policy, and compiles all engines/fonts/BibTeX/Biber plus browser PDFs
-before the separate Python retirement PR. The old Dockerfile remains unchanged
-until that gate passes. No public deployment or stable release is claimed.
+This is a release candidate, not a claim of public hostile-document or every-
+client/template acceptance. No stable tag or public traffic change was made.
+Optional WASM/cache/job APIs and performance tuning are separate follow-ups.
 
-## Versioning
+## Evidence
 
-This work is the start of the major v2 migration. The Rust foundation is
-`2.0.0-dev.3` (unreleased), while Python remains the production entry point.
-Stable `2.0.0` requires the gates below. See [VERSIONING.md](VERSIONING.md) and
-[CHANGELOG.md](../CHANGELOG.md) for milestone and release handling.
+- PRs 1–5 established the audit, Rust API/worker, working IDE and clean layout.
+- The native cutover PR adds remote authentication, PORT/readiness, input
+  admission retained through cancellation, full-project IDE uploads and native
+  filename preservation, then validates the container before retiring Python.
+- evidence/native-comparison.json records seven same-host HTTP comparisons.
+  Page counts, extracted text, font names and every page's 72 dpi rendering
+  match the retained reference. Timings are sequential single observations;
+  Rust adds isolation/multipass work, so no speedup is claimed.
+- Rust fixtures additionally cover uploaded OTF/TTF, Unicode, custom classes/
+  packages, TikZ/tables, missing resources, invalid source and bibliography.
+- Native CI includes all ignored tests with latexmk/BibTeX/Biber. Container CI
+  tests the assembled Python-free, non-root/read-only/resource/namespace profile
+  with real PDFs and browser rendering. Rust fmt/Clippy/test/release checks pass
+  before integration. The RustSec snapshot is recorded under evidence/.
+- evidence/rollback.json records local routing Rust → Python → Rust with real
+  PDFs at each step. It does not claim rollback of an external production image.
 
-## Current state
+## Intentional differences
 
-Phase 0 is partial: source/runtime audit, contract characterization, trusted
-basic and multi-file fixtures, security findings and local timing samples.
-Python production code, Docker entry point and runtime requirements remain
-available for comparison and rollback. The Rust service now provides native
-HTTP compilation and the existing browser IDE. WASM remains unimplemented.
+Unsafe shell escape, arbitrary compiler execution, unconfined paths/archives,
+ignored exit codes and host font-path rewriting are not preserved. Explicit
+engines are honored. Remote listeners require authentication. API.md documents
+the maintained request/response contract and limits. The browser framework and
+client data models were not rewritten.
 
-Audited tracked Python/config/deployment/release/browser sources at 54c5d89.
-No pre-existing tests or AGENTS/DEVELOPMENT guidance existed. Git origin HEAD
-already points to dev; main is preserved. dev was fetched and fast-forwarded
-(no new commits), then a dedicated audit worktree/branch was created.
+## Rollback source and actual deployments
 
-## Remaining gates
+The last reference source is commit 8f87470ab4f9c47458fd0a217199617a0478a784.
+Recover it in a separate worktree, never by resetting or overwriting current work:
 
-1. Phase 0: representative real resume/cover-letter/class/package/font/icon,
-   TikZ/table/bibliography/Unicode/invalid/large-document fixtures; visual/font
-   comparison references; real HTTP load, memory/CPU and container benchmarks;
-   latexmk/Biber integration; reproducible Python/TeX environment. Request
-   client-owned templates only if unavailable locally; do not invent parity.
-2. Phase 1: reviewed contracts and architecture; parallel Rust health/router
-   skeleton, pinned Rust toolchain, fmt/clippy/test/release CI and dependency /
-   license policy. Keep legacy routes served by Python until implemented.
-3. Phases 2–4: legacy adapters, safe engine selection, native process isolation,
-   multipass/log/PDF checks, project/ZIP/font handling, fixtures and red-green
-   regressions. Explicit-engine behavior differs from v1; document the change.
-4. Phases 5–6: bounded jobs/cancel/cache/metrics, equivalent-environment timing,
-   API differential suite, real-client and browser compatibility verification.
-5. Phase 7: switch production only after all supported fixtures pass text/page/
-   font/visual checks, security gates pass and deployment/rollback are tested.
-6. Phase 8: independently research/prototype optional WASM; never block native
-   compatibility on it or label an untested backend production-ready.
-7. Phases 9–10: actual Vitae Forge/TexSpace contract checks, examples, reviewed
-   security/performance/deployment evidence, then stable release tag.
+```sh
+git worktree add -b fix/controlled-legacy-rollback /tmp/texcompiler-legacy-rollback 8f87470ab4f9c47458fd0a217199617a0478a784
+```
 
-Each change uses a small branch and PR into dev. The first PR is this audit;
-the next introduces a parallel Rust foundation. Never merge failing work or
-remove Python merely to complete a milestone.
+That source retains known v1 vulnerabilities and should only be used for a
+controlled trusted-input rollback window. The new repository does not keep a
+second Python application. For real deployments record immutable old/new image
+digests and secret/configuration references, start the candidate separately,
+test your own corpus, then switch routing. Retain the previous deployment
+during observation and restore its routing/digest if acceptance fails.
 
-## Rollback
+## Remaining release acceptance
 
-Retain Python files and existing release history during migration. Before any
-production switch, publish immutable old/new image digests, record configuration
-and API routing, and rehearse restoring traffic to the previous Python image.
-Preserve project inputs; isolate or invalidate Rust caches by environment
-fingerprint. No rollback drill or production switch has occurred yet.
+The local TexSpace request model and binary response handling match the API;
+no live mobile/web client build was executed. Client-owned Vitae Forge templates
+were unavailable locally. Validate those actual inputs and external deployment
+before a stable release. The systemd template requires host-specific validation.
+Full CTAN/external-command compatibility is not promised; Python/shell-escape
+helpers are intentionally outside policy. production_ready stays false pending
+the final security/client acceptance review.
 
-## Foundation progress
-
-The approved foundation plan introduces only GET /api/v1/health and
-GET /api/v1/capabilities on a separate loopback listener. Six Rust tests cover
-truthful readiness, backend inventory, unknown/legacy routes and bind parsing.
-Rust toolchain/dependency lock and fmt/clippy/test/release CI are present.
-This completes the initial foundation slice, not all of Phase 1 or Phase 0.
-The worker security specification and experimental implementation are described
-below. Public TeX execution endpoints remain gated on production isolation.
-
-## Experimental native worker milestone — 2.0.0-dev.2
-
-Rust now validates in-memory byte projects and compiles trusted fixtures using
-pdfLaTeX/XeLaTeX/LuaLaTeX inside Bubblewrap, with fixed arguments, shell escape
-and latexmk rc loading disabled, bounded protocol/log/PDF output, PDF parsing,
-page counts, version metadata, a supervisor deadline and two slots per compiler
-instance. Cancellation retains the private workspace until process reaping.
-See [the worker contract](native-worker-contract.md) for exact limits.
-
-This is a Rust library/helper, not a production switch or public compile API.
-Fast tests cover path/count/byte/collision validation and protocol boundaries;
-opt-in tests cover native documents, controlled isolation and process cleanup.
-The native CI job explicitly includes ignored tests, installs latexmk and all
-three engines, and must pass before integration. Local direct-pass testing does
-not prove latexmk compatibility. The full project/font/ZIP APIs, aggregate
-cgroup/PID limits, seccomp, authentication and broad compatibility remain gates.
-
-## Working service milestone — 2.0.0-dev.3
-
-Following the user's instruction to make the service functional before further
-fine tuning, Rust now serves the existing IDE plus /compile, /compile/bundle,
-/detect-compiler, /compilers and /health. Versioned compile/project/engine/health/
-capability aliases are available. Source, JSON multi-file and multipart ZIP
-requests produce native PDF responses. Explicit compilers are honored; omitted
-or blank selections auto-detect from source. Assets stay byte-preserving and
-ZIP entries are validated in memory before private workspace creation.
-
-Start with `./run-rust.sh` (Linux; defaults to 127.0.0.1:8001). It builds both
-Rust binaries; no Python interpreter is used by this service. The API probes
-native compilation at startup and reports compilation_ready independently of
-production_ready (still false). Only use trusted documents on loopback while
-aggregate quotas/authentication and broad compatibility work continue.
-
-Verified locally: HTTP PDFs for all three engines, JSON/ZIP multi-file projects,
-compiler error diagnostics and the actual Chrome IDE compile/preview flow.
-The native latexmk CI gate is still required before integration. Existing
-Python remains only until full replacement/compatibility and rollback gates pass.
-
-## Python removal commitment
-
-After full migration, remove legacy/python/app/, legacy/python/main.py, Python runtime and test dependency
-manifests, Python-only launchers and Python CI, legacy/python/tests/test_legacy.py and
-legacy/python/scripts/benchmark_python.py after their useful coverage has been ported. Replace the Docker/Procfile/
-Render startup configurations with the validated Rust service and retain no
-Python runtime dependency in the final image. Convert useful regression fixtures
-and contracts to Rust before retiring the reference suite. Confirm client/API,
-IDE, native engine/font/project, security and deployment parity first. Historical
-Git tags/images provide rollback; Python must not remain in the final v2 runtime.
-
-Python removal depends on native functional parity and a validated Rust
-deployment, not on completing optional WASM, caching or performance fine tuning.
+The implementation remains native-first and independently reversible through
+reviewed Git history. All ordinary changes use task branches and PRs into dev;
+main and previous tags remain intact. No failing checks are merged to finish a
+phase, and benchmark numbers are never inferred from the language choice.

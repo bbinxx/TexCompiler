@@ -1,5 +1,6 @@
 name: Native worker integration
 on:
+  workflow_call:
   pull_request:
     branches: [dev]
   push:

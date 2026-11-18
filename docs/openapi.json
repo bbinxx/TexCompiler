@@ -1,0 +1,893 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TexCompiler",
+    "version": "2.0.0-rc.1",
+    "description": "Native Rust LaTeX service. Authentication is optional on loopback and required on remote listeners. Caching, asynchronous jobs and WASM are not implemented."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/compile": {
+      "post": {
+        "summary": "Compile a source or project",
+        "description": "Binary PDF success. Source-only requests use document.tex; main_file applies to files projects. Explicit engines are honored. Remote listeners require a bearer token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated PDF",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-TexCompiler-Engine": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-TexCompiler-Pages": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-TexCompiler-Method": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project, unsupported engine/backend or TeX failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request exceeds 32 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed JSON request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Worker or preparation capacity exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Native worker unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/compile": {
+      "post": {
+        "summary": "Compile a source or project",
+        "description": "Binary PDF success. Source-only requests use document.tex; main_file applies to files projects. Explicit engines are honored. Remote listeners require a bearer token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated PDF",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-TexCompiler-Engine": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-TexCompiler-Pages": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-TexCompiler-Method": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project, unsupported engine/backend or TeX failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request exceeds 32 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed JSON request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Worker or preparation capacity exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Native worker unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/compile": {
+      "post": {
+        "summary": "Compile a source or project",
+        "description": "Binary PDF success. Source-only requests use document.tex; main_file applies to files projects. Explicit engines are honored. Remote listeners require a bearer token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated PDF",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-TexCompiler-Engine": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-TexCompiler-Pages": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-TexCompiler-Method": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project, unsupported engine/backend or TeX failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request exceeds 32 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed JSON request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Worker or preparation capacity exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Native worker unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compile/bundle": {
+      "post": {
+        "summary": "Compile a ZIP project",
+        "description": "Binary PDF success. Source-only requests use document.tex; main_file applies to files projects. Explicit engines are honored. Remote listeners require a bearer token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "ZIP, at most 256 entries and 20 MiB expanded"
+                  },
+                  "main_file": {
+                    "type": "string",
+                    "default": "main.tex"
+                  },
+                  "compiler": {
+                    "type": "string",
+                    "enum": [
+                      "pdflatex",
+                      "xelatex",
+                      "lualatex"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated PDF",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-TexCompiler-Engine": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-TexCompiler-Pages": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-TexCompiler-Method": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project, unsupported engine/backend or TeX failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request exceeds 32 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed JSON request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Worker or preparation capacity exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Native worker unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/detect-compiler": {
+      "post": {
+        "summary": "Conservative engine recommendation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "preferred": {
+                    "type": "string",
+                    "enum": [
+                      "pdflatex",
+                      "xelatex",
+                      "lualatex"
+                    ],
+                    "default": "pdflatex"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recommendation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "compiler"
+                  ],
+                  "properties": {
+                    "compiler": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project, unsupported engine/backend or TeX failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request exceeds 32 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed JSON request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Worker or preparation capacity exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Native worker unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Liveness and compilation status",
+        "responses": {
+          "200": {
+            "description": "Liveness; compilation_ready reflects the startup probe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "summary": "Liveness and compilation status",
+        "responses": {
+          "200": {
+            "description": "Liveness; compilation_ready reflects the startup probe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compilers": {
+      "get": {
+        "summary": "Installed allowlisted engines",
+        "responses": {
+          "200": {
+            "description": "Sorted engine names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "compilers"
+                  ],
+                  "properties": {
+                    "compilers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "pdflatex",
+                          "xelatex",
+                          "lualatex"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/engines": {
+      "get": {
+        "summary": "Installed allowlisted engines",
+        "responses": {
+          "200": {
+            "description": "Sorted engine names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "compilers"
+                  ],
+                  "properties": {
+                    "compilers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "pdflatex",
+                          "xelatex",
+                          "lualatex"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "summary": "Readiness",
+        "responses": {
+          "200": {
+            "description": "Startup compilation succeeded"
+          },
+          "503": {
+            "description": "Startup worker/TeX probe failed"
+          }
+        }
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "summary": "Available backend capabilities",
+        "responses": {
+          "200": {
+            "description": "Only implemented features are advertised",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "backends": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "native"
+                        ]
+                      }
+                    },
+                    "compilation_ready": {
+                      "type": "boolean"
+                    },
+                    "production_ready": {
+                      "type": "boolean"
+                    },
+                    "experimental": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "CompileRequest": {
+        "type": "object",
+        "anyOf": [
+          {
+            "required": [
+              "code"
+            ]
+          },
+          {
+            "required": [
+              "files"
+            ]
+          }
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "files": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 256,
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Project-relative paths to UTF-8 text or base64 binary assets. Legacy base64 .cls/.sty values are accepted. Maximum 20 MiB decoded."
+          },
+          "main_file": {
+            "type": "string",
+            "default": "document.tex"
+          },
+          "compiler": {
+            "type": "string",
+            "enum": [
+              "pdflatex",
+              "xelatex",
+              "lualatex"
+            ],
+            "description": "Omit or send empty string for automatic detection."
+          },
+          "backend": {
+            "type": "string",
+            "enum": [
+              "native",
+              "auto"
+            ],
+            "default": "auto"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "details": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "log": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "required": [
+          "status",
+          "version",
+          "compilers",
+          "compilation_ready",
+          "production_ready"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded"
+            ]
+          },
+          "version": {
+            "type": "string"
+          },
+          "compilers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "latexmk": {
+            "type": "string"
+          },
+          "compilation_ready": {
+            "type": "boolean"
+          },
+          "production_ready": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

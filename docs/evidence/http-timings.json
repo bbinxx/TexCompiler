@@ -1,0 +1,198 @@
+{
+  "environment": "Same host as native-comparison.json; HTTP loopback, sequential requests, no latexmk",
+  "limitations": "Rust uses private namespaces and three TeX passes; Python uses one unconfined pass. First-observed is not a controlled OS-cache-cold run. Subsequent calls do not reuse private auxiliary/font caches. No load/CPU/RSS or language-only speedup conclusion.",
+  "records": [
+    {
+      "engine": "pdflatex",
+      "implementation": "python",
+      "attempt": 0,
+      "kind": "first-observed",
+      "milliseconds": 98.055356,
+      "pdfBytes": 14887
+    },
+    {
+      "engine": "pdflatex",
+      "implementation": "rust",
+      "attempt": 0,
+      "kind": "first-observed",
+      "milliseconds": 200.80855300000002,
+      "pdfBytes": 14875
+    },
+    {
+      "engine": "pdflatex",
+      "implementation": "python",
+      "attempt": 1,
+      "kind": "subsequent",
+      "milliseconds": 66.45428499999997,
+      "pdfBytes": 14887
+    },
+    {
+      "engine": "pdflatex",
+      "implementation": "rust",
+      "attempt": 1,
+      "kind": "subsequent",
+      "milliseconds": 209.298833,
+      "pdfBytes": 14875
+    },
+    {
+      "engine": "pdflatex",
+      "implementation": "python",
+      "attempt": 2,
+      "kind": "subsequent",
+      "milliseconds": 66.36335099999997,
+      "pdfBytes": 14887
+    },
+    {
+      "engine": "pdflatex",
+      "implementation": "rust",
+      "attempt": 2,
+      "kind": "subsequent",
+      "milliseconds": 205.08263399999998,
+      "pdfBytes": 14875
+    },
+    {
+      "engine": "pdflatex",
+      "implementation": "python",
+      "attempt": 3,
+      "kind": "subsequent",
+      "milliseconds": 68.125629,
+      "pdfBytes": 14887
+    },
+    {
+      "engine": "pdflatex",
+      "implementation": "rust",
+      "attempt": 3,
+      "kind": "subsequent",
+      "milliseconds": 214.4919759999999,
+      "pdfBytes": 14875
+    },
+    {
+      "engine": "xelatex",
+      "implementation": "python",
+      "attempt": 0,
+      "kind": "first-observed",
+      "milliseconds": 209.9424140000001,
+      "pdfBytes": 4155
+    },
+    {
+      "engine": "xelatex",
+      "implementation": "rust",
+      "attempt": 0,
+      "kind": "first-observed",
+      "milliseconds": 1006.8837559999997,
+      "pdfBytes": 4152
+    },
+    {
+      "engine": "xelatex",
+      "implementation": "python",
+      "attempt": 1,
+      "kind": "subsequent",
+      "milliseconds": 199.58062700000028,
+      "pdfBytes": 4155
+    },
+    {
+      "engine": "xelatex",
+      "implementation": "rust",
+      "attempt": 1,
+      "kind": "subsequent",
+      "milliseconds": 1017.4222479999999,
+      "pdfBytes": 4152
+    },
+    {
+      "engine": "xelatex",
+      "implementation": "python",
+      "attempt": 2,
+      "kind": "subsequent",
+      "milliseconds": 201.86407000000008,
+      "pdfBytes": 4155
+    },
+    {
+      "engine": "xelatex",
+      "implementation": "rust",
+      "attempt": 2,
+      "kind": "subsequent",
+      "milliseconds": 993.8001980000004,
+      "pdfBytes": 4152
+    },
+    {
+      "engine": "xelatex",
+      "implementation": "python",
+      "attempt": 3,
+      "kind": "subsequent",
+      "milliseconds": 202.28604599999926,
+      "pdfBytes": 4155
+    },
+    {
+      "engine": "xelatex",
+      "implementation": "rust",
+      "attempt": 3,
+      "kind": "subsequent",
+      "milliseconds": 1015.1750059999995,
+      "pdfBytes": 4152
+    },
+    {
+      "engine": "lualatex",
+      "implementation": "python",
+      "attempt": 0,
+      "kind": "first-observed",
+      "milliseconds": 289.9257170000001,
+      "pdfBytes": 4506
+    },
+    {
+      "engine": "lualatex",
+      "implementation": "rust",
+      "attempt": 0,
+      "kind": "first-observed",
+      "milliseconds": 4510.336375,
+      "pdfBytes": 4495
+    },
+    {
+      "engine": "lualatex",
+      "implementation": "python",
+      "attempt": 1,
+      "kind": "subsequent",
+      "milliseconds": 290.6668690000006,
+      "pdfBytes": 4506
+    },
+    {
+      "engine": "lualatex",
+      "implementation": "rust",
+      "attempt": 1,
+      "kind": "subsequent",
+      "milliseconds": 4528.589741,
+      "pdfBytes": 4495
+    },
+    {
+      "engine": "lualatex",
+      "implementation": "python",
+      "attempt": 2,
+      "kind": "subsequent",
+      "milliseconds": 289.5831440000002,
+      "pdfBytes": 4506
+    },
+    {
+      "engine": "lualatex",
+      "implementation": "rust",
+      "attempt": 2,
+      "kind": "subsequent",
+      "milliseconds": 4457.969217,
+      "pdfBytes": 4495
+    },
+    {
+      "engine": "lualatex",
+      "implementation": "python",
+      "attempt": 3,
+      "kind": "subsequent",
+      "milliseconds": 294.5137109999996,
+      "pdfBytes": 4506
+    },
+    {
+      "engine": "lualatex",
+      "implementation": "rust",
+      "attempt": 3,
+      "kind": "subsequent",
+      "milliseconds": 4512.845150000001,
+      "pdfBytes": 4495
+    }
+  ]
+}

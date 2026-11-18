@@ -2,7 +2,7 @@ services:
   texcompiler:
     build:
       context: .
-      dockerfile: Dockerfile.rust
+      dockerfile: Dockerfile
       args:
         TEX_PROFILE: ${TEXCOMPILER_TEX_PROFILE:-compatible}
     image: texcompiler:local

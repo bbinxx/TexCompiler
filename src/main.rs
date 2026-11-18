@@ -18,7 +18,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     let address = parse_bind_address(configured.as_deref())?;
     let listener = tokio::net::TcpListener::bind(address).await?;
-    tracing::info!(address = %listener.local_addr()?, "Rust foundation listening; compilation unavailable");
-    axum::serve(listener, texcompiler::router()).await?;
+    tracing::info!(address = %listener.local_addr()?, "Rust service listening");
+    let worker = env::var_os("TEXCOMPILER_WORKER")
+        .map(std::path::PathBuf::from)
+        .unwrap_or(env::current_exe()?.with_file_name("texcompiler-worker"));
+    let app = texcompiler::native_router(worker).await;
+    axum::serve(listener, app).await?;
     Ok(())
 }

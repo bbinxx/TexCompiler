@@ -10,7 +10,7 @@ release has shipped.
 |---|---|---|
 | Python runtime `1.3.0` | app/config.py APP_VERSION | Version currently exposed by Python health/IDE/OpenAPI |
 | Existing tag `v1.3.1` | Git release history | Latest existing v1 tag; preserve its history |
-| Rust `2.0.0-dev.2` | Cargo.toml and Cargo.lock | Unreleased experimental native worker milestone |
+| Rust `2.0.0-dev.3` | Cargo.toml and Cargo.lock | Unreleased working Rust service milestone |
 | Future `v2.0.0` | No tag yet | Stable release only after migration gates pass |
 
 The v1 tag/runtime mismatch is recorded, not silently corrected. Reconcile

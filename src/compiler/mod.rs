@@ -7,3 +7,5 @@ mod protocol;
 mod sandbox;
 mod worker;
 pub use worker::worker_main;
+mod detection;
+pub use detection::detect_engine;

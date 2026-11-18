@@ -4,7 +4,7 @@
 
 **Goal:** Compile trusted fixtures using Rust's experimental isolated native worker without changing Python production traffic.
 
-**Architecture:** Validate in-memory projects, create private workspaces, then supervise a same-build helper in Bubblewrap. TeX/PDF parsing stay in the resource-limited helper. No public compile endpoint until production isolation gates pass.
+**Architecture:** Validate in-memory projects, create private workspaces, then supervise a same-build helper in Bubblewrap. TeX/PDF parsing stay in the resource-limited helper. No public/untrusted deployment until production isolation gates pass.
 
 **Tech Stack:** Rust 1.100, Tokio process/time/sync/io, tempfile, Serde, base64, lopdf, Linux Bubblewrap/prlimit and installed TeX Live.
 
@@ -16,7 +16,8 @@
 - Keep Python, browser assets, runtime entry point and legacy contracts unchanged.
 - Honor explicit engine selection; disable shell escape and latexmk rc files.
 - Never bypass failed isolation. No untrusted host TeX tests.
-- Keep compilation_ready=false; no production-ready or speedup claim.
+- Keep production_ready=false; functional compilation readiness follows the
+  startup probe for the user-requested local service. No speedup claim.
 
 ## Review focus
 
@@ -77,3 +78,15 @@ a separate src/bin/texcompiler-worker.rs rather than changing the HTTP main.
 Independent code review found no critical/high defect; it requested the explicit
 latexmk gate and a larger JSON envelope, both now implemented. Final CI remains
 the integration gate, not a skipped-test claim of readiness.
+
+## User-directed working-service scope
+
+The user subsequently prioritized making the service work before fine tuning.
+The same feature now includes native_router HTTP endpoints, ZIP/JSON projects,
+embedded original IDE and a Rust-only launcher (dev.3). The default listener is
+loopback; compilation_ready reports the startup-probed functional state while
+production_ready remains false. Python stays only until full native replacement
+and deployment parity, then must be removed completely. An actual Chrome run
+verified editor -> compile -> visibly rendered PDF without JavaScript exceptions.
+HTTP review found a zip9 duplicate-name deduplication trap; a failing regression
+fixture demonstrated it and has_duplicate_names now rejects it before iteration.

@@ -12,3 +12,9 @@ pub fn router() -> axum::Router {
 
 pub mod compiler;
 pub mod workspace;
+
+/// Build the usable experimental service, probing worker isolation on startup.
+/// Use on loopback with trusted documents while production hardening continues.
+pub async fn native_router(worker: std::path::PathBuf) -> axum::Router {
+    api::native_router(worker).await
+}

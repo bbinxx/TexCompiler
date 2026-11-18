@@ -4,7 +4,19 @@ Entries describe implemented changes. Planned work lives in
 [the migration roadmap](docs/MIGRATION.md). Version and release rules are in
 [VERSIONING.md](docs/VERSIONING.md).
 
-## [Unreleased] — 2.0.0-dev.2 experimental native worker
+## [Unreleased] — 2.0.0-dev.3 working Rust service
+
+- Rust now serves the existing browser IDE and native compile/detection/engine/
+  health endpoints, with versioned compile/project aliases and binary PDFs.
+- Added bounded JSON/base64 project and multipart ZIP handling, startup worker
+  probe, explicit-engine behavior, compiler diagnostics and a Rust-only launcher.
+- Verified the real browser editor -> compile -> PDF preview flow in Chrome,
+  with no JavaScript exceptions, plus HTTP PDFs on all three native engines.
+- Python remains for parity and the existing deployment only; it will be removed
+  completely after full migration. Production hardening, compatibility corpus,
+  job/cache/performance work, new OpenAPI and WASM remain follow-ups.
+
+## Experimental native worker — 2.0.0-dev.2 (unreleased)
 
 - Rust now compiles trusted native fixtures through a private Linux Bubblewrap
   worker using explicit pdfLaTeX, XeLaTeX and LuaLaTeX engines.

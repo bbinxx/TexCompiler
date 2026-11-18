@@ -1,7 +1,8 @@
 # Experimental native worker contract
 
 Status: experimental implementation on `feature/native-worker-core`; not production
-readiness. HTTP compilation remains disabled until follow-up deployment gates.
+readiness. In dev.3 the HTTP service is enabled for local/trusted use; public deployment
+remains subject to the production gates.
 
 ## Boundary and protocol
 
@@ -18,7 +19,8 @@ A same-build `texcompiler-worker` Rust helper runs inside Linux Bubblewrap. stdi
 request (engine and main path); stdout is a bounded JSON result containing PDF
 base64, logs, warnings, page count, engine version and runner method, or a typed
 failure. Compiler stdout/stderr go to bounded sandbox files, not the protocol.
-No HTTP route or capability advertises the experimental worker yet.
+The local HTTP service advertises native compilation only after a successful
+startup compile probe; production_ready remains false.
 
 ## Execution policy
 

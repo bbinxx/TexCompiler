@@ -118,3 +118,32 @@ the job deadline before any tests ran. It explicitly installs all three engines,
 latexmk, recommended TeX fonts and PDF tools. Biber/full compatibility corpus
 coverage remains a future gate; this CI package profile does not define or shrink
 the production runtime's maximum-compatibility installation.
+
+## Working Rust API and IDE
+
+Current milestone: `2.0.0-dev.3`. Start `./run-rust.sh` and open
+http://127.0.0.1:8001. The launcher builds both Rust executables, and the server
+probes a real native compilation before reporting compilation_ready. Override
+TEXCOMPILER_WORKER only with a trusted same-build helper path. The original
+Python run.sh and Docker configuration remain until full parity is verified.
+
+The service supports all legacy routes, JSON multi-file and ZIP inputs, and the
+embedded IDE. A separate foundation-only router remains for its baseline tests.
+To check the actual editor/compile/PDF-preview flow with a disposable Chrome
+profile (Node 22+, Chrome installed):
+
+```sh
+TEXCOMPILER_URL=http://127.0.0.1:8001 node scripts/check-browser.cjs
+```
+
+CHROME_BIN can override the Chrome executable path. Native tests cover HTTP
+source/JSON/ZIP PDFs and explicit-engine errors; use --include-ignored as above.
+The full local gate currently excludes only the latexmk-specific test when that
+tool is absent; CI must verify it on an equipped runner. Initial native CI runs
+failed during package downloads, not worker tests. The runner uses apt mirrorlist
+files as well as ubuntu.sources; both are now configured for canonical HTTPS.
+
+Following the user's priority, production_ready stays false while functional
+local compilation is available. Authentication, aggregate cgroup/PID quotas,
+full client/template/font validation and tuning remain future work. Once full
+migration passes, remove Python completely as listed in MIGRATION.md.

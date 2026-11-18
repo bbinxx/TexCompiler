@@ -5,25 +5,26 @@ A high-performance LaTeX to PDF compilation service with a browser-based IDE, lo
 ## TexCompiler v2 — major migration in development
 
 **This repository has begun the major v2 migration from Python/FastAPI to
-Rust/Axum. Stable v2 is not released.** The experimental Rust worker is versioned
-`2.0.0-dev.2`; Python still serves LaTeX compilation and the browser IDE.
+Rust/Axum. Stable v2 is not released.** The working experimental Rust service is versioned
+`2.0.0-dev.3`; Rust now serves compilation and the browser IDE when launched with `run-rust.sh`.
+The existing Python deployment remains available during verification.
 
 | Component | Current status |
 |---|---|
 | Python compilation service | Existing runtime; reports `1.3.0` |
-| Rust `2.0.0-dev.2` | Experimental native worker; public API still health/capabilities only |
+| Rust `2.0.0-dev.3` | Working native HTTP compilation, ZIP/multi-file API and browser IDE |
 | Stable `2.0.0` | Planned; requires compatibility, security, deployment and rollback gates |
 
 The first milestones are merged: [audit and compatibility baseline (PR #1)](https://github.com/bbinxx/TexCompiler/pull/1)
 and [parallel Rust API foundation (PR #2)](https://github.com/bbinxx/TexCompiler/pull/2).
 The implementation/runtime and deployment transition warrants a major version;
 legacy API compatibility remains a requirement. Rust now has an experimental native worker for trusted fixtures on Linux.
-Public compilation endpoints, production worker quotas, broader compatibility
-and optional WASM remain pending.
+The Rust HTTP service is available for local/trusted use. Production quotas,
+broader compatibility and optional WASM remain pending.
 
 See the [changelog](CHANGELOG.md), [versioning policy](docs/VERSIONING.md), and
-[migration gates](docs/MIGRATION.md). The setup, API and deployment instructions
-below describe the existing Python service.
+[migration gates](docs/MIGRATION.md). The existing Docker deployment below still starts Python until migration gates
+pass. Python will be removed completely after full migration.
 
 ## Features
 
@@ -37,7 +38,22 @@ below describe the existing Python service.
 - **Session Persistence** — workspace folder handle is stored in IndexedDB and restored across page refreshes
 - **Cross-Platform** — Linux, macOS, Windows (native `.bat` + cross-shell `.sh`)
 
-## Quick Start
+## Run the Rust service
+
+On Linux with Rust, Bubblewrap, util-linux and TeX Live installed:
+
+```bash
+./run-rust.sh
+```
+
+Open **http://127.0.0.1:8001**, edit the demo and press **Compile**. The service
+supports pdfLaTeX, XeLaTeX, LuaLaTeX, multi-file JSON and ZIP bundles. It builds
+both binaries automatically and does not use Python. Use latexmk when installed;
+the fallback makes three engine passes. For another port, set
+`TEXCOMPILER_BIND=127.0.0.1:9001`. This is an unreleased local/trusted-document
+service; production hardening and compatibility verification continue.
+
+## Legacy Python Quick Start
 
 ```bash
 # Install LaTeX (Ubuntu/Debian)
@@ -224,11 +240,8 @@ docker run -p 8000:8000 texcompiler
 
 ## Rust migration status
 
-The production service is still Python v1.3.0. A parallel Rust API foundation provides versioned health and capability
-endpoints only. The separate experimental native worker is tested through the
-Rust library/integration suite; it does not yet serve HTTP compilation. WASM
-is unavailable. See
+Rust now serves native compilation and the existing IDE. See
 [the migration gates](docs/MIGRATION.md), [development workflow](docs/DEVELOPMENT.md),
-[API baseline](docs/API.md), and [security audit](docs/SECURITY.md).
-The current compiler enables shell escape and lacks process isolation; use
-trusted documents only until the security gates are implemented.
+[API documentation](docs/API.md), and [security status](docs/SECURITY.md).
+Python is retained for compatibility comparison and the current Docker startup;
+it will be removed after full migration. Stable v2 and WASM are not released.

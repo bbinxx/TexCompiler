@@ -13,6 +13,8 @@ services:
     security_opt:
       - no-new-privileges:true
       - seccomp=./deploy/seccomp.json
+      # bwrap changes only its NEW user namespace's limit to block nesting.
+      - systempaths=unconfined
       # The default Docker AppArmor profile denies nested namespace mounts.
       # Scope this exception to the service; never change the host's policy here.
       - apparmor=unconfined

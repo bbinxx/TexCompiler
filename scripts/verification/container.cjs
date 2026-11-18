@@ -7,6 +7,7 @@ const compose = (...args) => execFileSync('docker',['compose','-p','texcompiler-
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const source = name => readFileSync(`fixtures/${name}`,'utf8');
 (async()=>{
+  const hostNamespaceLimit = readFileSync('/proc/sys/user/max_user_namespaces','utf8');
   const cid = compose('ps','-q','texcompiler');
   assert(cid,'container is not running');
   const inspect = JSON.parse(execFileSync('docker',['inspect',cid],{encoding:'utf8'}))[0];
@@ -15,6 +16,10 @@ const source = name => readFileSync(`fixtures/${name}`,'utf8');
   assert.equal(inspect.HostConfig.PidsLimit,128);
   assert(inspect.HostConfig.Memory > 0 && inspect.HostConfig.Memory <= 3*1024**3);
   assert.deepEqual(inspect.HostConfig.CapDrop,['ALL']);
+  assert.equal(inspect.HostConfig.NanoCpus,2_000_000_000);
+  assert(inspect.HostConfig.SecurityOpt.some(value=>value.startsWith('no-new-privileges')));
+  assert(inspect.HostConfig.SecurityOpt.includes('systempaths=unconfined'));
+  assert(inspect.HostConfig.Tmpfs['/tmp'].includes('size='));
   execFileSync('docker',['exec',cid,'/bin/sh','-ec','! command -v python; ! command -v python3; ! command -v pip; test ! -d /usr/lib/python3; test ! -d /usr/lib/python3.12; ! touch /app/should-be-read-only']);
   for(let i=0;i<180;i++) {
     try { const response = await fetch(base+'/ready'); if(response.ok)break; } catch {}
@@ -57,4 +62,5 @@ const source = name => readFileSync(`fixtures/${name}`,'utf8');
   }
   await compile({code:source('basic/main.tex')},'TexCompiler compatibility baseline.');
   console.log(JSON.stringify({pythonFree:true,restrictedRuntime:true,compileChecks:count,restartRecovery:true}));
+  assert.equal(readFileSync('/proc/sys/user/max_user_namespaces','utf8'),hostNamespaceLimit);
 })().catch(error=>{console.error(error.message);process.exitCode=1});

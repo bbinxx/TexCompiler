@@ -1,0 +1,16 @@
+const {spawnSync}=require('node:child_process');
+const {readFileSync}=require('node:fs');
+const assert=require('node:assert/strict');
+const path='/proc/sys/user/max_user_namespaces';
+const before=readFileSync(path,'utf8');
+const flags=['run','--rm','--user','10001:10001','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges:true','--security-opt','seccomp=deploy/seccomp.json','--security-opt','apparmor=unconfined','--tmpfs','/tmp:size=67108864,mode=1777'];
+const bwrap=['--unshare-all','--disable-userns','--die-with-parent','--cap-drop','ALL','--ro-bind','/','/','--proc','/proc','--','/bin/sh','-ec','! /usr/bin/unshare --user --map-root-user /usr/bin/true'];
+const denied=spawnSync('docker',[...flags,'--entrypoint','/usr/bin/bwrap','texcompiler:local',...bwrap],{encoding:'utf8',timeout:30000});
+assert.notEqual(denied.status,0,'default Docker profile unexpectedly allowed the required namespace write');
+assert.match(denied.stderr,/Read-only file system/,'negative control failed for an unexpected reason');
+const allowed=spawnSync('docker',[...flags,'--security-opt','systempaths=unconfined','--entrypoint','/usr/bin/bwrap','texcompiler:local',...bwrap],{encoding:'utf8',timeout:30000});
+assert.equal(allowed.status,0,allowed.stderr);
+const protectedWrite=spawnSync('docker',[...flags,'--security-opt','systempaths=unconfined','--entrypoint','/bin/sh','texcompiler:local','-ec','value=$(cat /proc/sys/vm/swappiness); if printf "%s" "$value" > /proc/sys/vm/swappiness; then exit 1; fi'],{encoding:'utf8',timeout:30000});
+assert.equal(protectedWrite.status,0,'outer non-root service could write a host-global sysctl');
+assert.equal(readFileSync(path,'utf8'),before,'host namespace limit changed');
+console.log(JSON.stringify({defaultProfileFailsClosed:true,scopedProfileWorks:true,nestedUserNamespacesBlocked:true,hostSysctlsProtected:true}));

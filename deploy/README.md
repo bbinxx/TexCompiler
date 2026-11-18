@@ -10,6 +10,12 @@ seccomp.json derives from https://github.com/moby/profiles/blob/main/seccomp/def
 (Apache-2.0). It retains the default deny policy and adds the namespace/mount
 syscalls Bubblewrap needs in its own unprivileged user namespace; it does not
 grant host capabilities or permit bpf/perf/keyring operations. Docker's outer
+system-path masks are disabled for this service so Bubblewrap can set its own
+new user namespace's max_user_namespaces limit and block further nesting. This removes ALL Docker
+masked/read-only system-path defaults, not just one sysctl; the outer service
+is still non-root without capabilities. CI checks host namespace limits are
+unchanged and a host-global sysctl write is denied. The worker does not mount
+/proc at all and cannot create another user namespace. Docker's outer
 AppArmor mount restriction is disabled only for this service. On AppArmor hosts,
 an administrator must separately allow unprivileged user namespaces. The service
 never changes host kernel settings. CI does so only on its disposable runner.

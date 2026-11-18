@@ -1,5 +1,12 @@
 # Migration status and gates
 
+## Versioning
+
+This work is the start of the major v2 migration. The Rust foundation is
+`2.0.0-dev.1` (unreleased), while Python remains the production entry point.
+Stable `2.0.0` requires the gates below. See [VERSIONING.md](VERSIONING.md) and
+[CHANGELOG.md](../CHANGELOG.md) for milestone and release handling.
+
 ## Current state
 
 Phase 0 is partial: source/runtime audit, contract characterization, trusted

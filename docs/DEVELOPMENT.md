@@ -56,7 +56,8 @@ Run `cargo run --locked` for a separate listener at 127.0.0.1:8001. Override wit
 `TEXCOMPILER_BIND=127.0.0.1:9001`; numeric IPv4/IPv6 socket addresses are accepted,
 invalid/empty values fail startup. Python PORT does not configure this listener.
 RUST_LOG controls tracing (default info). Stop using the normal process signal.
-No compilation worker, IDE, legacy routes or authentication run in this binary.
+No compilation worker, IDE, legacy routes or authentication run in the HTTP binary.
+A separate experimental worker helper now exists; see below.
 
 ```sh
 cargo fmt --all -- --check
@@ -69,7 +70,7 @@ Foundation TDD evidence: empty router returned 404 for both requested endpoints;
 the config test failed to import the missing parser. After implementation six
 Rust integration tests pass. CI runs the same checks separately from Python.
 No compilation performance change is claimed. Dependency/license audit tooling,
-generated OpenAPI and native worker tests remain future gates.
+generated OpenAPI and production deployment validation remain future gates.
 
 Rust-specific guidance was subsequently located and read upstream at
 https://github.com/leonardomso/rust-skills/blob/master/SKILL.md (v1.5.1), without
@@ -77,3 +78,86 @@ installing third-party files. Applied typed boundary parsing, propagated errors,
 no unsafe code, no user-input panics, and async route tests. Axum/Tower usage
 was checked against their primary docs at https://docs.rs/axum/0.8.9/axum/ and
 https://docs.rs/tower/0.5.3/tower/trait.ServiceExt.html.
+
+## Experimental native worker
+
+Current Rust milestone: `2.0.0-dev.2` (unreleased). Use the library's
+`NativeCompiler::new(trusted_worker_binary)` with `Project::new` byte assets and
+an explicit `Engine`; do not take executable paths from client requests. The
+helper binary is `texcompiler-worker`; `cargo run --locked` still starts the API.
+Run the helper only through the supervisor's private sandbox. It refuses normal
+unsandboxed startup and is not a standalone service or security boundary by itself.
+
+Linux prerequisites: Bubblewrap with --disable-userns and --size, permitted
+unprivileged user namespaces, /usr/bin/prlimit, TeX engines under /usr/bin and
+latexmk for automated bibliography/multipass workflows. No fallback bypasses
+failed isolation. Local testing uses Bubblewrap 0.13.1, util-linux 2.42.4 and
+TeX Live 2026/Arch Linux. System libpaper configuration must be visible read-only
+for XeTeX's PDF driver. The sandbox discovers only the explicitly listed system
+paths; TeX installed under /usr/local/texlive is not currently supported.
+
+```sh
+# Fast tests; native/isolation tests are intentionally ignored here.
+cargo test --locked --all-features
+# Full native gate: requires latexmk, all three engines, Python 3 for a probe.
+cargo test --locked --all-features -- --include-ignored
+# Local direct fallback gate when latexmk is absent (not a full native gate).
+cargo test --locked --all-features -- --include-ignored --skip latexmk_all_engines_and_nested_main_are_verified
+```
+
+Native CI installs the dependencies and runs the full no-skip gate separately
+from fast Rust/Python checks. Tests use trusted documents and controlled probes
+inside the sandbox. No untrusted host TeX execution is allowed. Tests probe host
+marker/env/network invisibility, read-only mounts, aggregate output tmpfs size,
+and externally observed descendant/workspace/slot cleanup after timeout/cancel.
+See native-worker-contract.md and SECURITY.md for production limitations.
+
+The native CI fixture profile uses Ubuntu's canonical HTTPS mirrors and disables
+optional apt recommendations after the first regional-mirror download exceeded
+the job deadline before any tests ran. It explicitly installs all three engines,
+latexmk, recommended TeX fonts and PDF tools. Biber/full compatibility corpus
+coverage remains a future gate; this CI package profile does not define or shrink
+the production runtime's maximum-compatibility installation.
+
+## Working Rust API and IDE
+
+Current milestone: `2.0.0-dev.3`. Start `./run-rust.sh` and open
+http://127.0.0.1:8001. The launcher builds both Rust executables, and the server
+probes a real native compilation before reporting compilation_ready. Override
+TEXCOMPILER_WORKER only with a trusted same-build helper path. The original
+Python run.sh and Docker configuration remain until full parity is verified.
+
+The service supports all legacy routes, JSON multi-file and ZIP inputs, and the
+embedded IDE. A separate foundation-only router remains for its baseline tests.
+To check the actual editor/compile/PDF-preview flow with a disposable Chrome
+profile (Node 22+, Chrome installed):
+
+```sh
+TEXCOMPILER_URL=http://127.0.0.1:8001 node scripts/check-browser.cjs
+```
+
+CHROME_BIN can override the Chrome executable path. Native tests cover HTTP
+source/JSON/ZIP PDFs and explicit-engine errors; use --include-ignored as above.
+The full local gate currently excludes only the latexmk-specific test when that
+tool is absent; CI must verify it on an equipped runner. Initial native CI runs
+failed during package downloads, not worker tests. The runner uses apt mirrorlist
+files as well as ubuntu.sources; both are now configured for canonical HTTPS.
+
+Following the user's priority, production_ready stays false while functional
+local compilation is available. Authentication, aggregate cgroup/PID quotas,
+full client/template/font validation and tuning remain future work. Once full
+migration passes, remove Python completely as listed in MIGRATION.md.
+
+Ubuntu's packaged Bubblewrap 0.9 failed network namespace loopback setup on the
+CI runner before TeX execution. CI now builds the locally validated 0.13.1
+release, checks its published SHA-256, and retains all namespace/isolation tests.
+Use Bubblewrap 0.13.1 for the currently validated worker profile; older tools
+that fail setup are rejected without host execution.
+
+The current Bubblewrap release reproduced the Ubuntu CI namespace failure,
+identifying the runner's AppArmor unprivileged-userns restriction as the next
+precondition. On the disposable CI VM only, the workflow enables user namespaces
+as Bubblewrap's upstream CI does (commit f97804f5171f9416daa37a83e07ea5c264ffc383).
+The worker's network/mount isolation and all tests remain unchanged. No service
+code or launcher changes host kernel settings. Production Ubuntu hosts require
+an administrator-approved sandbox/user-namespace policy.

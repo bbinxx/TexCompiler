@@ -34,15 +34,43 @@ error/log/warnings on failure. It does not upload the full local workspace.
 Vitae Forge and TexSpace were not checked externally; do not claim those clients
 are verified from these server tests alone.
 
-## Parallel Rust foundation
+## Working Rust service (2.0.0-dev.3)
 
-On its separate listener (default 127.0.0.1:8001), Rust implements:
+Run `./run-rust.sh`; the default listener is 127.0.0.1:8001. It implements the
+five legacy endpoints above and embeds the original IDE/static assets. It uses
+native isolated workers, with no Python interpreter in the request path.
 
-- GET /api/v1/health: 200 `{status:"starting",compilation_ready:false}`.
-- GET /api/v1/capabilities: 200 `{backends:[],compilation_ready:false}`.
+- POST /compile and /api/v1/compile: legacy JSON input, binary PDF success.
+- POST /api/v1/projects/compile: the same JSON multi-file contract.
+- POST /compile/bundle: multipart ZIP, main_file=main.tex, optional compiler.
+- POST /detect-compiler: code and preferred compiler -> compiler recommendation.
+- GET /compilers and /api/v1/engines: installed allowlisted compilers.
+- GET /health and /api/v1/health: runtime version, engines, startup-probed
+  compilation_ready and production_ready=false.
+- GET /api/v1/capabilities: native backend when startup probe succeeds,
+  experimental=true and production_ready=false. No WASM capability is advertised.
 
-HTTP 200 here proves the foundation listener responds, not compilation
-readiness. Legacy routes and the IDE remain on Python (default port 8000).
-Other Rust paths return 404. Authentication, jobs, engines, native execution,
-WASM and generated versioned OpenAPI remain planned; no client traffic should
-be redirected to the foundation.
+Explicit engine selections are never overridden. Missing/blank compile engine
+selections auto-detect Unicode/Lua/Xe package requirements; detection understands
+comma-separated packages and ignores comments. The browser's blank loading
+selection is accepted as auto. This intentionally corrects v1's silent overrides.
+
+Binary assets (images/PDF/fonts/ZIP) are base64 strings in files. Plain TeX
+class/package strings and the legacy base64 class/package convention are both
+accepted. Source is not rewritten to substitute fonts or paths. ZIP input is
+bounded and rejects unsafe paths, links/special entries and duplicate filenames.
+The body limit is 32 MiB; decoded projects are limited to 20 MiB and 256 files.
+
+Errors remain JSON: empty input is 400 No code provided; validation/engine/TeX
+failures are 400; busy workers are 429; failed native setup is 503. Invalid JSON
+uses the extractor's 4xx status with a JSON error. PDF success includes
+Content-Disposition and X-TexCompiler-Engine, X-TexCompiler-Pages and
+X-TexCompiler-Method headers. Attachment filenames use a sanitized main basename.
+
+The old `router()` library function retains the noncompiling foundation router
+for baseline tests; the executable uses `native_router()` and probes its worker.
+The browser still submits its active source; the multi-file API is available
+for clients but automatic upload of a local IDE workspace is not yet implemented.
+Jobs, generated new OpenAPI, authentication, full package/font compatibility
+and production deployment remain follow-ups. Do not expose this prototype to
+untrusted users before its production gates pass.

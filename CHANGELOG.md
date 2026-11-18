@@ -4,10 +4,37 @@ Entries describe implemented changes. Planned work lives in
 [the migration roadmap](docs/MIGRATION.md). Version and release rules are in
 [VERSIONING.md](docs/VERSIONING.md).
 
-## [Unreleased] — 2.0.0-dev.1 development milestone
+## [Unreleased] — 2.0.0-dev.3 working Rust service
+
+- Rust now serves the existing browser IDE and native compile/detection/engine/
+  health endpoints, with versioned compile/project aliases and binary PDFs.
+- Added bounded JSON/base64 project and multipart ZIP handling, startup worker
+  probe, explicit-engine behavior, compiler diagnostics and a Rust-only launcher.
+- Verified the real browser editor -> compile -> PDF preview flow in Chrome,
+  with no JavaScript exceptions, plus HTTP PDFs on all three native engines.
+- Python remains for parity and the existing deployment only; it will be removed
+  completely after full migration. Production hardening, compatibility corpus,
+  job/cache/performance work, new OpenAPI and WASM remain follow-ups.
+
+## Experimental native worker — 2.0.0-dev.2 (unreleased)
+
+- Rust now compiles trusted native fixtures through a private Linux Bubblewrap
+  worker using explicit pdfLaTeX, XeLaTeX and LuaLaTeX engines.
+- Added byte-preserving project validation, private workspaces, bounded input /
+  output / tmpfs / diagnostics, fixed compiler arguments, PDF parsing/page count,
+  engine metadata, bounded worker slots, timeout and cancellation cleanup.
+- Shell escape and latexmk rc files are disabled. latexmk is used when present;
+  the direct fallback runs three passes and does not automate bibliographies.
+- Added native/isolation regression tests and a separate native integration CI
+  gate with all three engines and latexmk.
+- This is an unreleased internal development milestone. HTTP compilation still
+  runs on Python; aggregate quotas, authentication, full compatibility and WASM
+  remain incomplete. No stable v2 tag, deployment or speedup is claimed.
+
+## Development foundation — 2.0.0-dev.1 (unreleased)
 
 This is the start of a **major version migration**, not a published stable
-release. `2.0.0-dev.1` is the current Rust package version; no matching release
+release. `2.0.0-dev.1` was the initial Rust package version; no matching release
 tag has been created. Python remains the production compilation entry point.
 
 ### Added

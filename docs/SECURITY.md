@@ -29,3 +29,19 @@ The launchers also kill processes listening on PORT; do not use them in shared
 production environments. Existing release workflow publishes on tags without
 test gates. Security regression tests must use controlled fixtures and isolated
 workers; never launch host exploit samples to demonstrate these findings.
+
+## Experimental Rust worker boundary
+
+The `2.0.0-dev.2` library/helper addresses workspace validation, fixed engine
+arguments, no shell escape, namespace/file/env/network separation, bounded
+output/tmpfs and kill/reap cleanup for its experimental execution path. It does
+not remediate the still-production Python execution path. Rust compile routes are now enabled for local/trusted use in dev.3 after a
+native startup probe; production_ready remains false.
+
+[The native worker contract](native-worker-contract.md) lists mounts and limits.
+Bubblewrap is not a complete security policy: aggregate cgroup memory/CPU/PID
+limits, seccomp, authenticated tenant boundaries, deployment separation and
+hostile-document review remain required before public use. Per-process
+RLIMIT_AS/CPU limits do not prevent aggregate process exhaustion. Production readiness must stay false while these gates remain open.
+The user explicitly prioritized a usable local service before further hardening;
+this does not make the prototype suitable for public/untrusted deployments.

@@ -32,3 +32,7 @@ async fn capabilities() -> Json<Capabilities> {
         compilation_ready: false,
     })
 }
+mod assets;
+mod project;
+mod service;
+pub(crate) use service::router as native_router;

@@ -1,0 +1,47 @@
+name: Native worker integration
+on:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev]
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native toolchain and compatibility tools
+        timeout-minutes: 10
+        run: |
+          # Avoid the slow regional HTTP mirror seen in the initial CI run.
+          sudo sed -i -E 's@http://[a-z0-9.-]*ec2.archive.ubuntu.com/ubuntu/?@https://archive.ubuntu.com/ubuntu/@g; s@http://security.ubuntu.com/ubuntu/?@https://security.ubuntu.com/ubuntu/@g' /etc/apt/sources.list.d/ubuntu.sources
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          if [ -f /etc/apt/apt-mirrors-security.txt ]; then
+            printf '%s\n' 'https://security.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors-security.txt >/dev/null
+          fi
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::https::Timeout=30 update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::https::Timeout=30 install -y --no-install-recommends bubblewrap util-linux meson ninja-build libcap-dev texlive-latex-extra texlive-xetex texlive-luatex texlive-fonts-recommended latexmk poppler-utils
+      - name: Build the validated Bubblewrap release
+        run: |
+          curl -fsSL --retry 3 https://github.com/containers/bubblewrap/releases/download/v0.13.1/bubblewrap-0.13.1.tar.xz -o "$RUNNER_TEMP/bubblewrap.tar.xz"
+          printf '%s  %s\n' '0e85c8702248b8dd64144f594147553650cdd0e4c951690345faace79c217c4d' "$RUNNER_TEMP/bubblewrap.tar.xz" | sha256sum --check
+          tar -xf "$RUNNER_TEMP/bubblewrap.tar.xz" -C "$RUNNER_TEMP"
+          meson setup "$RUNNER_TEMP/bubblewrap-build" "$RUNNER_TEMP/bubblewrap-0.13.1" -Dman=disabled -Dtests=false -Dselinux=disabled
+          meson compile -C "$RUNNER_TEMP/bubblewrap-build"
+          sudo install -m 0755 "$RUNNER_TEMP/bubblewrap-build/bwrap" /usr/bin/bwrap
+          /usr/bin/bwrap --version
+      - name: Enable user namespaces on the disposable Ubuntu runner
+        run: |
+          # Same CI prerequisite as containers/bubblewrap commit f97804f.
+          # This does not alter the worker's namespace/mount policy or host setup.
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.100.0 --profile minimal
+      - name: Run explicit native and isolation gates (no skips)
+        run: cargo test --locked --all-features -- --include-ignored

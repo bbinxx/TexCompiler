@@ -1,5 +1,21 @@
 # Migration status and gates
 
+## Native cutover candidate
+
+The completion branch adds authenticated remote listeners, PORT support,
+readiness, bounded input preparation through cancellation, project uploads in
+the IDE, basename-preserving native jobs, and an isolated Rust container profile.
+Seven trusted Python/Rust HTTP fixtures match page counts, extracted text, font
+names and every page's 72 dpi rendering. Exact observations are recorded in
+[native-comparison.json](evidence/native-comparison.json); these are not speedup
+claims. Rust-only tests additionally cover uploaded OTF/TTF and missing resources.
+
+Dockerfile.rust and compose.yaml are the cutover candidates. CI must prove the
+final runtime has no Python interpreter, enforces its configured resource and
+filesystem policy, and compiles all engines/fonts/BibTeX/Biber plus browser PDFs
+before the separate Python retirement PR. The old Dockerfile remains unchanged
+until that gate passes. No public deployment or stable release is claimed.
+
 ## Versioning
 
 This work is the start of the major v2 migration. The Rust foundation is

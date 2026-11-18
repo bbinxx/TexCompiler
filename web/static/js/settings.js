@@ -1,3 +1,5 @@
+import { getApiToken, setApiToken } from './auth.js';
+
 const DB_NAME = 'texcompiler-store';
 const DB_VERSION = 1;
 const STORE_NAME = 'handles';
@@ -41,6 +43,9 @@ export class Settings {
         this.folderLabel = document.getElementById('settings-folder-label');
         this.closeBtn = document.getElementById('settings-close');
         this.status = document.getElementById('settings-status');
+        this.tokenInput = document.getElementById('settings-api-token');
+        this.tokenInput.value = getApiToken();
+        this.tokenInput.addEventListener('input', () => setApiToken(this.tokenInput.value));
 
         this._dirHandle = null;
         this._folderName = null;

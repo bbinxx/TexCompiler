@@ -18,6 +18,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const evaluate=async expression=>(await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true})).result?.value;
   await send('Runtime.enable');await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   for(let i=0;i<150;i++){if(await evaluate('typeof ace!=="undefined" && document.querySelector("#editor .ace_content")!==null && Boolean(document.querySelector("#compiler")?.value)'))break;if(i===149)throw new Error('Editor did not initialize: '+JSON.stringify(errors));await sleep(100);}
+  if(process.env.TEXCOMPILER_API_TOKEN) await evaluate(`sessionStorage.setItem('texcompiler-api-token',${JSON.stringify(process.env.TEXCOMPILER_API_TOKEN)})`);
   await evaluate('document.querySelector("#compile-btn").click()');
   let terminal='';
   for(let i=0;i<300;i++){terminal=await evaluate('document.querySelector("#terminal-content").innerText');if(terminal.includes('PDF generated successfully.'))break;if(terminal.includes('Compilation failed'))throw new Error(terminal);if(i===299)throw new Error('Compile did not finish: '+terminal);await sleep(100);}

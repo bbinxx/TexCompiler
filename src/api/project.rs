@@ -17,6 +17,7 @@ pub(super) struct CompileRequest {
     #[serde(default = "default_main")]
     pub main_file: String,
     pub compiler: Option<String>,
+    pub backend: Option<String>,
 }
 fn default_main() -> String {
     "document.tex".into()
@@ -32,6 +33,16 @@ pub(super) fn choose_engine(name: Option<&str>, code: &str) -> Result<Engine, Ap
 }
 
 pub(super) fn prepare(request: CompileRequest) -> Result<(Project, Engine, String), ApiError> {
+    if request
+        .backend
+        .as_deref()
+        .is_some_and(|backend| !matches!(backend, "native" | "auto"))
+    {
+        return Err(ApiError::bad(
+            "Unsupported backend",
+            "Only native and auto are available; WASM is not implemented",
+        ));
+    }
     let mut files = BTreeMap::new();
     let mut source = String::new();
     let main;

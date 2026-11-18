@@ -1,4 +1,4 @@
-name: Rust foundation
+name: Rust checks
 on:
   push:
     branches: [dev]
@@ -18,3 +18,7 @@ jobs:
       - run: cargo clippy --locked --all-targets --all-features -- -D warnings
       - run: cargo test --locked --all-features
       - run: cargo build --locked --release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/web/*.test.mjs

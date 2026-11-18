@@ -122,7 +122,7 @@ mod tests {
 [ ! -e /proc/self ]
 ! touch /project/write 2>/dev/null
 ! touch /usr/write 2>/dev/null
-/usr/bin/python3 -c 'import socket; s=socket.socket(); s.settimeout(1); assert s.connect_ex(("127.0.0.1",{})) != 0'
+/bin/bash -c 'if exec 3<>/dev/tcp/127.0.0.1/{}; then exit 1; fi'
 printf 'isolated'
 "#,
             marker.display(),

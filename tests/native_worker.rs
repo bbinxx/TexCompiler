@@ -16,6 +16,25 @@ fn compiler() -> NativeCompiler {
 }
 
 #[tokio::test]
+#[ignore = "requires Linux sandbox and native TeX"]
+async fn project_basename_is_preserved_as_tex_jobname() {
+    let project = Project::new(
+        BTreeMap::from([(
+            "chapters/resume.tex".into(),
+            br"\documentclass{article}\begin{document}Job: \jobname\end{document}".to_vec(),
+        )]),
+        "chapters/resume.tex".into(),
+    )
+    .unwrap();
+    let output = compiler().compile(project, Engine::PdfLatex).await.unwrap();
+    let text = lopdf::Document::load_mem(&output.pdf)
+        .unwrap()
+        .extract_text(&[1])
+        .unwrap();
+    assert!(text.contains("resume"), "{text}");
+}
+
+#[tokio::test]
 async fn missing_worker_fails_closed() {
     let error = NativeCompiler::new(PathBuf::from("/texcompiler-missing-worker"))
         .compile(source("plain"), Engine::PdfLatex)

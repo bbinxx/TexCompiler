@@ -5,7 +5,8 @@ import { Explorer } from './explorer.js';
 import { UI } from './ui.js';
 import { Settings } from './settings.js';
 import { DEFAULT_LATEX } from './defaults.js';
-import { detectCompiler, needsUnicodeEngine } from './detector.js';
+import { detectCompiler } from './detector.js';
+import { collectProject } from './project.js';
 
 function debounce(fn, ms) {
   let timer;
@@ -174,7 +175,6 @@ function initApp() {
   const debouncedDetect = debounce(runDetect, 600);
 
   onChange(() => {
-    manualOverride = false;
     debouncedDetect();
   });
 
@@ -189,17 +189,7 @@ function initApp() {
 
   async function handleCompile() {
     const code = getCode();
-    let compiler = ui.getCompiler();
-
-    if (needsUnicodeEngine(code)) {
-      const unicodeCompilers = ['lualatex', 'xelatex'];
-      if (!unicodeCompilers.includes(compiler)) {
-        const fallback = ui.hasCompiler('lualatex') ? 'lualatex' : 'xelatex';
-        terminal.warning(`"${compiler}" cannot compile code using fontspec. Switching to "${fallback}".`);
-        compiler = fallback;
-        ui.setCompiler(compiler);
-      }
-    }
+    const compiler = ui.getCompiler();
 
     terminal.clear();
     terminal.info('Starting compilation...');
@@ -214,7 +204,15 @@ function initApp() {
       }
     }
 
-    const result = await compileCode(code, compiler);
+    let project = null;
+    try {
+      if (explorer.hasFolder && currentFilePath) project = await collectProject(explorer.rootHandle,currentFilePath,code);
+    } catch (error) {
+      terminal.error(error.message);
+      ui.setCompiling(false);
+      return;
+    }
+    const result = await compileCode(code, compiler, project);
 
     ui.setCompiling(false);
 

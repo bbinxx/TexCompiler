@@ -12,12 +12,16 @@ use axum::{
         DefaultBodyLimit, Multipart, State, multipart::MultipartRejection, rejection::JsonRejection,
     },
     http::{HeaderValue, StatusCode, header},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 const BODY_LIMIT: usize = 32 * 1024 * 1024;
 #[derive(Clone)]
@@ -25,9 +29,10 @@ struct App {
     compiler: NativeCompiler,
     ready: bool,
     engines: Vec<&'static str>,
+    preparations: Arc<tokio::sync::Semaphore>,
 }
 
-pub(crate) async fn router(worker: PathBuf) -> Router {
+pub(crate) async fn router(worker: PathBuf, token: Option<String>) -> Router {
     let compiler = NativeCompiler::new(worker);
     let mut engines = [Engine::PdfLatex, Engine::XeLatex, Engine::LuaLatex]
         .into_iter()
@@ -64,6 +69,7 @@ pub(crate) async fn router(worker: PathBuf) -> Router {
         compiler,
         ready,
         engines,
+        preparations: Arc::new(tokio::sync::Semaphore::new(8)),
     };
     Router::new()
         .route("/", get(assets::index))
@@ -73,14 +79,84 @@ pub(crate) async fn router(worker: PathBuf) -> Router {
         .route("/detect-compiler", post(detect))
         .route("/compilers", get(compilers))
         .route("/health", get(health))
+        .route("/ready", get(readiness))
         .route("/api/v1/compile", post(compile))
         .route("/api/v1/projects/compile", post(compile))
         .route("/api/v1/engines", get(compilers))
         .route("/api/v1/health", get(health))
         .route("/api/v1/capabilities", get(capabilities))
+        .layer(middleware::from_fn_with_state(
+            Access {
+                token: token.map(Arc::new),
+                requests: Arc::new(tokio::sync::Semaphore::new(8)),
+            },
+            authorize,
+        ))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(tower_http::cors::CorsLayer::permissive())
         .with_state(state)
+}
+
+#[derive(Clone)]
+struct Access {
+    token: Option<Arc<String>>,
+    requests: Arc<tokio::sync::Semaphore>,
+}
+
+async fn authorize(
+    State(access): State<Access>,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    let protected = request.method() != axum::http::Method::OPTIONS
+        && (request.uri().path() == "/compile"
+            || request.uri().path().starts_with("/compile/")
+            || request.uri().path() == "/detect-compiler"
+            || request.uri().path().starts_with("/api/v1/compile")
+            || request.uri().path().starts_with("/api/v1/projects")
+            || request.uri().path().starts_with("/api/v1/jobs"));
+    if protected {
+        if let Some(expected) = access.token {
+            let provided = request
+                .headers()
+                .get(header::AUTHORIZATION)
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.strip_prefix("Bearer "))
+                .unwrap_or("");
+            // Compare all configured bytes without a content-dependent early exit.
+            let mut difference = provided.len() ^ expected.len();
+            for (index, byte) in expected.bytes().enumerate() {
+                difference |=
+                    usize::from(byte ^ provided.as_bytes().get(index).copied().unwrap_or(0));
+            }
+            if difference != 0 {
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    [(header::WWW_AUTHENTICATE, "Bearer")],
+                    Json(json!({"error":"Authentication required"})),
+                )
+                    .into_response();
+            }
+        }
+        let Ok(_permit) = access.requests.try_acquire_owned() else {
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(json!({"error":"Service busy"})),
+            )
+                .into_response();
+        };
+        return match tokio::time::timeout(std::time::Duration::from_secs(150), next.run(request))
+            .await
+        {
+            Ok(response) => response,
+            Err(_) => (
+                StatusCode::REQUEST_TIMEOUT,
+                Json(json!({"error":"Request timed out"})),
+            )
+                .into_response(),
+        };
+    }
+    next.run(request).await
 }
 fn name(engine: Engine) -> &'static str {
     match engine {
@@ -128,9 +204,7 @@ async fn compile(
         status: e.status(),
         body: json!({"error":"Invalid compile request"}),
     })?;
-    let prepared = tokio::task::spawn_blocking(move || project::prepare(request))
-        .await
-        .map_err(|_| ApiError::unavailable())??;
+    let prepared = prepare(&app.preparations, move || project::prepare(request)).await?;
     execute(app, prepared).await
 }
 
@@ -190,10 +264,61 @@ async fn bundle(
         }
     }
     let bytes = file.ok_or_else(|| ApiError::bad("Invalid bundle", "Missing ZIP file"))?;
-    let prepared = tokio::task::spawn_blocking(move || project::unzip(bytes, main, engine))
-        .await
-        .map_err(|_| ApiError::unavailable())??;
+    let prepared = prepare(&app.preparations, move || {
+        project::unzip(bytes, main, engine)
+    })
+    .await?;
     execute(app, prepared).await
+}
+
+async fn prepare<T: Send + 'static>(
+    slots: &Arc<tokio::sync::Semaphore>,
+    task: impl FnOnce() -> Result<T, ApiError> + Send + 'static,
+) -> Result<T, ApiError> {
+    let permit = slots.clone().try_acquire_owned().map_err(|_| ApiError {
+        status: StatusCode::TOO_MANY_REQUESTS,
+        body: json!({"error":"Project preparation busy"}),
+    })?;
+    tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        task()
+    })
+    .await
+    .map_err(|_| ApiError::unavailable())?
+}
+
+#[cfg(test)]
+mod admission_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn cancelled_preparation_keeps_its_slot_until_blocking_work_finishes() {
+        let slots = Arc::new(tokio::sync::Semaphore::new(1));
+        let gate = slots.clone();
+        let (started, ready) = tokio::sync::oneshot::channel();
+        let (release, wait) = std::sync::mpsc::channel::<()>();
+        let caller = tokio::spawn(async move {
+            prepare(&gate, move || {
+                let _ = started.send(());
+                let _ = wait.recv();
+                Ok(())
+            })
+            .await
+        });
+        ready.await.unwrap();
+        caller.abort();
+        let _ = caller.await;
+        assert_eq!(slots.available_permits(), 0);
+        assert!(prepare(&slots, || Ok(())).await.is_err());
+        release.send(()).unwrap();
+        for _ in 0..100 {
+            if slots.available_permits() == 1 {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        panic!("preparation permit did not return after work finished");
+    }
 }
 
 async fn execute(
@@ -278,6 +403,17 @@ async fn health(State(app): State<App>) -> Json<Value> {
     Json(
         json!({"status":if app.ready {"healthy"}else{"degraded"},"version":env!("CARGO_PKG_VERSION"),"compilers":app.engines,"latexmk":if Path::new("/usr/bin/latexmk").is_file(){"/usr/bin/latexmk"}else{"Not found"},"compilation_ready":app.ready,"production_ready":false}),
     )
+}
+async fn readiness(State(app): State<App>) -> Response {
+    (
+        if app.ready {
+            StatusCode::OK
+        } else {
+            StatusCode::SERVICE_UNAVAILABLE
+        },
+        Json(json!({"compilation_ready":app.ready})),
+    )
+        .into_response()
 }
 async fn capabilities(State(app): State<App>) -> Json<Value> {
     Json(

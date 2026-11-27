@@ -25,7 +25,7 @@ services:
       - /tmp:size=536870912,mode=1777,nosuid,nodev
     environment:
       PORT: "8000"
-      TEXCOMPILER_API_TOKEN: ${TEXCOMPILER_API_TOKEN:?Set a random token of at least 32 ASCII characters}
+      TEXCOMPILER_API_TOKEN: ${TEXCOMPILER_API_TOKEN:-}
     ports:
       - "127.0.0.1:${TEXCOMPILER_PORT:-8001}:8000"
     stop_grace_period: 150s

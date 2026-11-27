@@ -116,20 +116,19 @@ supports the [worker policy](deploy/README.md). The image supplies Rust,
 TeX Live and Bubblewrap. Run these commands from the repository root.
 
 ```sh
-export TEXCOMPILER_API_TOKEN="$(openssl rand -hex 32)"
 docker compose version
 docker compose up --build -d --wait
 curl --fail http://127.0.0.1:8001/ready
 ```
 
-Open **http://127.0.0.1:8001**, enter the token in **Settings**, and click
+Open **http://127.0.0.1:8001**, and click
 **Compile** to render the sample. See the [Docker deployment guide](docs/DEPLOYMENT.md#docker-compose)
 for persistent configuration, an authenticated PDF request, and troubleshooting.
 
-Enter the token in the IDE's Settings, or send `Authorization: Bearer TOKEN`.
+If you configure a token, enter it in the IDE's Settings or send `Authorization: Bearer TOKEN`.
 The token stays in the browser tab's session. Keep it on your server or trusted
 gateway; do not embed a shared service token in a public frontend bundle.
-Non-loopback listeners require a 32–256 character printable ASCII token.
+Unset or empty tokens allow anyone who can reach the API to compile. Configured tokens must be 32–256 non-whitespace ASCII characters.
 
 Compose applies a non-root UID, read-only root, bounded temporary storage,
 CPU/memory/PID limits and a namespace-compatible seccomp policy. Worker network,
@@ -184,8 +183,8 @@ rejected. Remote clients must configure authentication.
 | Setting | Default | Purpose |
 |---|---|---|
 | TEXCOMPILER_BIND | 127.0.0.1:8001 | Explicit numeric listener; overrides PORT |
-| PORT | unset | Bind 0.0.0.0 to platform port; requires token |
-| TEXCOMPILER_API_TOKEN | unset | Optional locally, required remotely |
+| PORT | unset | Bind 0.0.0.0 to platform port |
+| TEXCOMPILER_API_TOKEN | unset | Optional bearer token for compilation |
 | TEXCOMPILER_WORKER | Sibling binary | Trusted same-build helper path |
 | RUST_LOG | info | Log filter; tokens/source are not logged |
 

@@ -35,7 +35,7 @@ Optional WASM/cache/job APIs and performance tuning are separate follow-ups.
 
 Unsafe shell escape, arbitrary compiler execution, unconfined paths/archives,
 ignored exit codes and host font-path rewriting are not preserved. Explicit
-engines are honored. Remote listeners require authentication. API.md documents
+engines are honored. Authentication is optional on all listeners. API.md documents
 the maintained request/response contract and limits. The browser framework and
 client data models were not rewritten.
 

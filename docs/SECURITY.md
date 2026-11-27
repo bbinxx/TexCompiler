@@ -24,7 +24,7 @@ production_ready flag remains false pending final public security/client review.
   The supervisor retains workspace/permit ownership through process reaping.
 - Compose adds a non-root, read-only, no-capability/no-new-privilege container
   with aggregate memory/CPU/PID/temp-space limits and the checked-in seccomp policy.
-- Remote listeners require a strong bearer token. Auth runs before preparation;
+- A configured bearer token protects compilation routes. Without one, any caller with network access can compile. Auth runs before preparation;
   tokens/source are not logged or inherited by workers. Use TLS at the gateway.
 
 Exact mounts and limits are in native-worker-contract.md. The approved system

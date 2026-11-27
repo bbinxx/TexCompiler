@@ -16,11 +16,11 @@ pub struct ServiceConfig {
 }
 
 impl ServiceConfig {
-    /// Explicit bind takes precedence over platform PORT. Remote listeners must
-    /// authenticate compilation requests; local development can remain tokenless.
+    /// Explicit bind takes precedence over platform PORT. An unset or empty
+    /// token allows unauthenticated compilation on any listener.
     ///
     /// # Errors
-    /// Rejects invalid listeners, platform ports and absent/weak remote tokens.
+    /// Rejects invalid listeners, platform ports and invalid nonempty tokens.
     pub fn parse(
         bind: Option<&str>,
         port: Option<&str>,
@@ -37,6 +37,7 @@ impl ServiceConfig {
         } else {
             parse_bind_address(None).map_err(|_| "invalid default bind")?
         };
+        let token = token.filter(|value| !value.is_empty());
         if token.as_ref().is_some_and(|value| {
             value.len() < 32
                 || value.len() > 256
@@ -45,9 +46,6 @@ impl ServiceConfig {
             return Err(
                 "TEXCOMPILER_API_TOKEN must contain 32–256 non-whitespace ASCII characters".into(),
             );
-        }
-        if !bind.ip().is_loopback() && token.is_none() {
-            return Err("non-loopback listeners require TEXCOMPILER_API_TOKEN".into());
         }
         Ok(Self { bind, token })
     }

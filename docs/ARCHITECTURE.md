@@ -21,7 +21,7 @@ flowchart LR
 
 Legacy routes keep JSON inputs and binary PDF success responses. Versioned
 aliases share that implementation. Request bodies are bounded at 32 MiB.
-Remote listeners require a bearer token; health, readiness, engine inventory,
+A configured bearer token protects compilation. Health, readiness, engine inventory,
 the IDE/static files and OpenAPI remain public. Authentication precedes project
 parsing. Admission bounds concurrent requests and preparation; a cancelled
 request cannot release the permit of still-running blocking ZIP work.

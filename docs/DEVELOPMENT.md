@@ -16,7 +16,7 @@ Run ./run.sh or ./run-rust.sh from the repository; both build the two binaries
 and start the service on loopback port 8001. cargo run alone does not guarantee
 the helper is built; use cargo build --bins first when launching manually.
 TEXCOMPILER_BIND overrides PORT. Setting PORT binds a remote listener and
-requires TEXCOMPILER_API_TOKEN. Never use a client-supplied worker path.
+accepts requests without authentication unless TEXCOMPILER_API_TOKEN is set. Never use a client-supplied worker path.
 
 ## Workflow
 

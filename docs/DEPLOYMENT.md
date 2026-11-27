@@ -33,7 +33,7 @@ worker profile. A Procfile alone does not install TeX or grant those permissions
 ## Docker Compose
 
 Follow the [Docker installation steps](INSTALLATION.md#docker-host-setup)
-first. From the repository root, create a local `.env` once. This command
+first. For open access, leave `TEXCOMPILER_API_TOKEN` unset and run `docker compose up --build -d --wait`. To enable authentication, create a local `.env` from the repository root. This command
 refuses to overwrite an existing file. If you already have one, add
 `TEXCOMPILER_API_TOKEN` to it manually and keep its permissions restricted.
 
@@ -135,7 +135,7 @@ export TEXCOMPILER_API_TOKEN="$(openssl rand -hex 32)"
 PORT=10000 ./target/release/texcompiler
 ```
 
-PORT binds 0.0.0.0 and therefore requires authentication. TEXCOMPILER_BIND takes
+PORT binds 0.0.0.0. Authentication applies only with a configured token. TEXCOMPILER_BIND takes
 precedence; it must be a numeric IPv4/IPv6 socket address. The Procfile assumes
 the two release binaries and native dependencies were built/installed already.
 
@@ -211,7 +211,7 @@ intend to restore the historical deployment. No stable release is tagged here.
 
 | Symptom | Check |
 |---|---|
-| Startup requires token | Non-loopback bind/PORT requires a 32–256 character ASCII token |
+| Startup rejects token | Remove it for open access or use 32–256 non-whitespace ASCII characters |
 | /ready returns 503 | Logs, Bubblewrap version, user namespaces, host security policy, helper path and installed TeX |
 | 401 compile | Bearer header or IDE Settings token |
 | 429 compile | All worker/preparation slots are busy; retry with bounded backoff |

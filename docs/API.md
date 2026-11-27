@@ -17,8 +17,7 @@ legacy-openapi.json is historical baseline evidence, not the live contract.
 | GET | /ready | — |
 | GET | — | /api/v1/capabilities |
 
-The root serves the IDE; /static URLs serve embedded web assets. Remote
-listeners require a bearer token for compile/detect calls. Health, readiness,
+The root serves the IDE; /static URLs serve embedded web assets. Compile and detect calls require a bearer token only when configured. Health, readiness,
 inventory, capabilities, IDE/assets and OpenAPI remain public. A token can also
 protect loopback use. Authentication is checked before project preparation.
 
